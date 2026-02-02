@@ -1,0 +1,392 @@
+# FinanSecure Transactions Service - HTTP Examples
+
+Ejemplos de requests HTTP para todos los endpoints.
+
+## 🔑 Autenticación
+
+Obtener token del Auth Service primero:
+
+```http
+POST http://localhost:5000/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "username": "usuario",
+  "password": "contraseña"
+}
+
+###
+# Respuesta:
+# {
+#   "accessToken": "eyJhbGc...",
+#   "refreshToken": "...",
+#   "expiresIn": 900
+# }
+```
+
+Usar token en requests:
+```http
+Authorization: Bearer eyJhbGc...
+```
+
+---
+
+## 📱 Transacciones
+
+### Crear Transacción
+
+```http
+POST http://localhost:5001/api/v1/transactions
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "type": "EXPENSE",
+  "categoryId": "{{category_id}}",
+  "description": "Compra en Carrefour",
+  "amount": 125.50,
+  "date": "2024-01-15T10:30:00Z",
+  "isRecurring": false,
+  "notes": "Compras mensuales"
+}
+
+###
+# Response: 201 Created
+# {
+#   "success": true,
+#   "data": {
+#     "id": "uuid",
+#     "type": "EXPENSE",
+#     "categoryId": "uuid",
+#     "categoryName": "Groceries",
+#     "amount": 125.50,
+#     "date": "2024-01-15T10:30:00Z"
+#   }
+# }
+```
+
+### Listar Transacciones
+
+```http
+GET http://localhost:5001/api/v1/transactions
+Authorization: Bearer {{token}}
+
+###
+# Con filtros:
+GET http://localhost:5001/api/v1/transactions?startDate=2024-01-01&endDate=2024-01-31
+Authorization: Bearer {{token}}
+```
+
+### Obtener Transacción por ID
+
+```http
+GET http://localhost:5001/api/v1/transactions/{{transaction_id}}
+Authorization: Bearer {{token}}
+```
+
+### Actualizar Transacción
+
+```http
+PUT http://localhost:5001/api/v1/transactions/{{transaction_id}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Compra actualizada",
+  "amount": 130.00
+}
+
+###
+# Solo actualiza los campos enviados
+```
+
+### Eliminar Transacción
+
+```http
+DELETE http://localhost:5001/api/v1/transactions/{{transaction_id}}
+Authorization: Bearer {{token}}
+
+###
+# Respuesta: 204 No Content (soft delete)
+```
+
+### Transacciones por Categoría
+
+```http
+GET http://localhost:5001/api/v1/transactions/category/{{category_id}}
+Authorization: Bearer {{token}}
+```
+
+---
+
+## 🏷️ Categorías
+
+### Crear Categoría
+
+```http
+POST http://localhost:5001/api/v1/categories
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Groceries",
+  "type": "EXPENSE",
+  "icon": "🛒",
+  "color": "#FF5733"
+}
+```
+
+### Listar Categorías
+
+```http
+GET http://localhost:5001/api/v1/categories
+Authorization: Bearer {{token}}
+
+###
+# Filtrar por tipo:
+GET http://localhost:5001/api/v1/categories?type=EXPENSE
+Authorization: Bearer {{token}}
+```
+
+### Obtener Categoría
+
+```http
+GET http://localhost:5001/api/v1/categories/{{category_id}}
+Authorization: Bearer {{token}}
+```
+
+### Actualizar Categoría
+
+```http
+PUT http://localhost:5001/api/v1/categories/{{category_id}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Supermercados",
+  "type": "EXPENSE",
+  "icon": "🏪",
+  "color": "#00AA00"
+}
+```
+
+### Eliminar Categoría
+
+```http
+DELETE http://localhost:5001/api/v1/categories/{{category_id}}
+Authorization: Bearer {{token}}
+
+###
+# Solo se puede eliminar si no hay transacciones
+```
+
+---
+
+## 💰 Presupuestos
+
+### Crear Presupuesto
+
+```http
+POST http://localhost:5001/api/v1/budgets
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "categoryId": "{{category_id}}",
+  "limit": 500.00,
+  "month": 1,
+  "year": 2024
+}
+```
+
+### Obtener Presupuesto
+
+```http
+GET http://localhost:5001/api/v1/budgets/{{budget_id}}
+Authorization: Bearer {{token}}
+```
+
+### Presupuestos del Mes
+
+```http
+GET http://localhost:5001/api/v1/budgets/month/1/2024
+Authorization: Bearer {{token}}
+```
+
+### Actualizar Presupuesto
+
+```http
+PUT http://localhost:5001/api/v1/budgets/{{budget_id}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "categoryId": "{{category_id}}",
+  "limit": 600.00,
+  "month": 1,
+  "year": 2024
+}
+```
+
+### Eliminar Presupuesto
+
+```http
+DELETE http://localhost:5001/api/v1/budgets/{{budget_id}}
+Authorization: Bearer {{token}}
+```
+
+---
+
+## 📊 Dashboard y Reportes
+
+### Resumen de Dashboard
+
+```http
+GET http://localhost:5001/api/v1/dashboard/summary
+Authorization: Bearer {{token}}
+
+###
+# Response:
+# {
+#   "success": true,
+#   "data": {
+#     "period": "2024-01-01 to 2024-01-31",
+#     "totalIncome": 3000.00,
+#     "totalExpenses": 1500.00,
+#     "balance": 1500.00,
+#     "incomeByCategory": [...],
+#     "expenseByCategory": [...]
+#   }
+# }
+```
+
+### Reporte Mensual
+
+```http
+GET http://localhost:5001/api/v1/dashboard/monthly-report?month=1&year=2024
+Authorization: Bearer {{token}}
+
+###
+# Response:
+# {
+#   "success": true,
+#   "data": {
+#     "month": 1,
+#     "year": 2024,
+#     "totalIncome": 3000.00,
+#     "totalExpenses": 1500.00,
+#     "netIncome": 1500.00,
+#     "incomeBreakdown": [...],
+#     "expenseBreakdown": [...]
+#   }
+# }
+```
+
+### Desglose de Ingresos
+
+```http
+GET http://localhost:5001/api/v1/dashboard/income-breakdown?startDate=2024-01-01&endDate=2024-01-31
+Authorization: Bearer {{token}}
+
+###
+# Response:
+# [
+#   {
+#     "categoryId": "uuid",
+#     "categoryName": "Salary",
+#     "amount": 3000.00,
+#     "percentage": 100.00
+#   }
+# ]
+```
+
+### Desglose de Gastos
+
+```http
+GET http://localhost:5001/api/v1/dashboard/expense-breakdown?startDate=2024-01-01&endDate=2024-01-31
+Authorization: Bearer {{token}}
+
+###
+# Response:
+# [
+#   {
+#     "categoryId": "uuid",
+#     "categoryName": "Groceries",
+#     "amount": 500.00,
+#     "percentage": 33.33
+#   },
+#   ...
+# ]
+```
+
+---
+
+## 🔐 Códigos de Respuesta
+
+| Code | Significado |
+|------|-------------|
+| 200 | OK - Operación exitosa |
+| 201 | Created - Recurso creado |
+| 204 | No Content - Eliminado exitosamente |
+| 400 | Bad Request - Validación fallida |
+| 401 | Unauthorized - Token inválido/expirado |
+| 404 | Not Found - Recurso no encontrado |
+| 500 | Internal Server Error - Error del servidor |
+
+---
+
+## 💡 Tips
+
+1. **Guardar token en variable**:
+   ```
+   @token = eyJhbGc...
+   @category_id = uuid-valor
+   @transaction_id = uuid-valor
+   ```
+
+2. **Usar en VS Code REST Client**:
+   - Instalar extensión "REST Client"
+   - Guardar este archivo como `.http`
+   - Click en "Send Request"
+
+3. **Usar con Postman**:
+   - Importar este archivo
+   - Configurar variable `token` en Environment
+
+4. **Fechas en ISO 8601**:
+   ```
+   2024-01-15T10:30:00Z
+   ```
+
+---
+
+## 🧪 Flujo Completo de Testing
+
+```http
+### 1. Autenticar
+POST http://localhost:5000/api/v1/auth/login
+...
+
+### 2. Crear Categoría
+POST http://localhost:5001/api/v1/categories
+Authorization: Bearer {{token}}
+...
+
+### 3. Crear Transacción
+POST http://localhost:5001/api/v1/transactions
+Authorization: Bearer {{token}}
+...
+
+### 4. Ver Dashboard
+GET http://localhost:5001/api/v1/dashboard/summary
+Authorization: Bearer {{token}}
+
+### 5. Crear Presupuesto
+POST http://localhost:5001/api/v1/budgets
+Authorization: Bearer {{token}}
+...
+```
+
+---
+
+Documentación: [ARCHITECTURE.md](./ARCHITECTURE.md) | [QUICKSTART.md](./QUICKSTART.md)

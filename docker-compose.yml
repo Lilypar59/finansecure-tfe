@@ -1,0 +1,323 @@
+version: '3.9'
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 🚀 FinanSecure: Docker Compose para Desarrollo
+# ════════════════════════════════════════════════════════════════════════════════
+#
+# ARQUITECTURA:
+#
+#  Navegador
+#    │
+#    └─→ localhost:80 (NGINX - API GATEWAY)
+#            │
+#            ├─→ http://finansecure-auth:8080 (PRIVADO - Red Docker)
+#            │       └─→ postgres-auth:5432 (PRIVADO - Red Docker)
+#            │
+#            └─→ http://finansecure-frontend:80 (Angular - Contenido Estático)
+#
+# REDES:
+#  - auth-network: PostgreSQL + Auth Service (aislado)
+#  - backend: NGINX + Auth Service (comunicación)
+#
+# SEGURIDAD:
+#  ✓ Solo NGINX expuesto al navegador (puerto 80)
+#  ✓ Backend NO expuesto directamente
+#  ✓ Database NO accesible desde navegador
+#  ✓ DNS interno solo disponible entre contenedores
+#
+# ════════════════════════════════════════════════════════════════════════════════
+
+services:
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # 🗄️  PostgreSQL: Base de datos para Auth Service (PRIVADA - Red interna)
+  # ════════════════════════════════════════════════════════════════════════════════
+  postgres-auth:
+    image: postgres:15-alpine
+    container_name: finansecure-postgres-auth
+    restart: unless-stopped
+
+    # 🔐 CREDENCIALES
+    environment:
+      POSTGRES_USER: auth_user
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-SecureAuth2024!}
+      POSTGRES_DB: finansecure_auth_db
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+      TZ: UTC
+
+    # ⚠️  IMPORTANTE: Puerto expuesto SOLO para desarrollo local
+    # En PRODUCCIÓN, esto debe ser comentado o removido
+    ports:
+      - "${AUTH_DB_PORT:-5432}:5432"
+
+    # 📁 VOLÚMENES: Persistencia de datos
+    volumes:
+      # Datos de PostgreSQL (persistencia entre reinicios)
+      - auth_db_data:/var/lib/postgresql/data
+
+      # Script de inicialización (corre solo si la BD está vacía)
+      - ./init-db.sql:/docker-entrypoint-initdb.d/01-init.sql
+
+    # 🔗 REDES: Aislamiento de servicios
+    networks:
+      # Red privada con Auth Service
+      auth-network:
+
+        # 🏥 HEALTH CHECK: Monitorear estado de la BD
+    # ✅ IMPORTANTE: Especificar -d para evitar "database does not exist"
+    # Sin -d, pg_isready asume database=postgres o database=username
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U auth_user -d finansecure_auth_db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+    # 📊 LOGGING: Centralizar logs del contenedor
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=postgres-auth"
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # 🔐 FinanSecure.Auth: Servicio de Autenticación (PRIVADO - Red interna)
+  # ════════════════════════════════════════════════════════════════════════════════
+  finansecure-auth:
+    build:
+      context: .
+      dockerfile: FinanSecure.Auth/Dockerfile
+    container_name: finansecure-auth
+    restart: unless-stopped
+
+    # ⚠️  IMPORTANTE: Puerto expuesto SOLO para debugging local
+    # En PRODUCCIÓN, esto debe ser comentado (solo accesible via NGINX)
+    ports:
+      - "${AUTH_SERVICE_PORT:-8080}:8080"
+
+    # ⚙️  CONFIGURACIÓN DEL SERVICIO
+    environment:
+      # ASP.NET Core configuration
+      ASPNETCORE_ENVIRONMENT: ${ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:8080
+
+      # Base de datos (ÚNICA FUENTE DE VERDAD)
+      # ✅ EF Core lee ConnectionStrings__DefaultConnection
+      # ❌ NO usar DB_HOST, DB_PORT, etc. (no son usadas por EF Core)
+      ConnectionStrings__DefaultConnection: "Host=postgres-auth;Port=5432;Database=finansecure_auth_db;Username=auth_user;Password=${AUTH_DB_PASSWORD:-SecureAuth2024!};"
+
+      # JWT (Seguridad de tokens)
+      JwtSettings__SecretKey: ${JWT_SECRET_KEY:-your-super-secret-key-min-32-chars-change-in-prod}
+      JwtSettings__Issuer: ${JWT_ISSUER:-FinanSecure}
+      JwtSettings__Audience: ${JWT_AUDIENCE:-FinanSecure.Client}
+      JwtSettings__ExpirationMinutes: ${JWT_EXPIRATION_MINUTES:-15}
+      JwtSettings__RefreshTokenExpirationDays: ${JWT_REFRESH_EXPIRATION_DAYS:-7}
+
+      # Logging y aplicación
+      LOG_LEVEL: ${AUTH_LOG_LEVEL:-Information}
+      APP_NAME: FinanSecure.Auth
+      APP_VERSION: 1.0.0
+      TZ: UTC
+
+    # 🔗 DEPENDENCIAS: Esperar a que PostgreSQL esté listo
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+
+    # 🔗 REDES: Aislamiento y comunicación
+    networks:
+      # Red privada con PostgreSQL
+      auth-network: # Red compartida con NGINX
+
+      backend:
+
+        # 📁 VOLÚMENES: Logs y datos
+    volumes:
+      - auth_logs:/app/logs
+
+    # 🎛️  RECURSOS: Limitar CPU y memoria (best practice)
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    # 🏥 HEALTH CHECK: Monitorear servicio
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # 📊 LOGGING: Centralizar logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=auth"
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # 🌐 NGINX: API Gateway + SPA Server (EXPUESTO - Único punto de entrada)
+  # ════════════════════════════════════════════════════════════════════════════════
+  #
+  # RESPONSABILIDADES:
+  #  ✓ Servir contenido estático de Angular (SPA)
+  #  ✓ Actuar como Reverse Proxy para /api/* → finansecure-auth
+  #  ✓ Manejar CORS headers
+  #  ✓ Comprimir respuestas con GZIP
+  #  ✓ Logging centralizado de peticiones
+  #  ✓ Health check para Docker
+  #
+  # IMPORTANTE: El navegador SOLO accede a localhost:80
+  #             Backend (finansecure-auth) es PRIVADO (no expuesto)
+  #
+  finansecure-frontend:
+    build:
+      context: .
+      dockerfile: finansecure-web/Dockerfile.prod
+    container_name: finansecure-frontend
+    restart: unless-stopped
+
+    # ✅ ÚNICA ENTRADA EXPUESTA AL NAVEGADOR
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+
+    # 🔗 DEPENDENCIAS: Esperar a que Auth Service esté listo
+    depends_on:
+      finansecure-auth:
+        condition: service_healthy
+      postgres-auth:
+        condition: service_healthy
+
+    # 🔗 REDES: Comunicación con backend (red privada)
+    networks:
+      backend:
+
+        # 🏥 HEALTH CHECK: Monitorear disponibilidad de NGINX
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+    # 📊 LOGGING: Centralizar logs de NGINX
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+        labels: "service=frontend"
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # 📊 PGADMIN: Gestor de Bases de Datos (OPCIONAL - Solo desarrollo)
+  # ════════════════════════════════════════════════════════════════════════════════
+  #
+  # Para acceder:
+  #  1. Abrir navegador en http://localhost:5050
+  #  2. Email: admin@finansecure.com
+  #  3. Password: AdminPassword2024!
+  #  4. Agregar conexión a postgres-auth:5432
+  #
+  # ⚠️  NO incluir en producción
+  #
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: finansecure-pgadmin
+    restart: unless-stopped
+
+    # 🔐 CREDENCIALES (cambiar en producción)
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@finansecure.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-AdminPassword2024!}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      TZ: UTC
+
+    # 🌐 PUERTO (solo para desarrollo)
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+
+    # 📁 VOLÚMENES (persistencia de configuración)
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+    # 🔗 REDES (acceso a BD)
+    networks:
+      - auth-network
+      - backend
+
+    # 🔗 DEPENDENCIAS
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+
+    # 🏥 HEALTH CHECK
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/misc/ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+    # 📊 LOGGING
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+        labels: "service=pgadmin"
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 📁 VOLÚMENES: Persistencia de datos entre reinicios
+# ════════════════════════════════════════════════════════════════════════════════
+volumes:
+  # 🗄️  Base de datos de Auth Service
+  #     - Persiste entre reinicios de contenedores
+  #     - Inicializado con init-db.sql
+  auth_db_data:
+    driver: local
+
+  # 📊 Logs de Auth Service
+  #    - Para debugging y auditoría
+  auth_logs:
+    driver: local
+
+  # 📊 PgAdmin configuration
+  #    - Guarda conexiones y preferencias
+  pgadmin_data:
+    driver: local
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 🔗 REDES: Aislamiento y segregación de tráfico (Zero Trust)
+# ════════════════════════════════════════════════════════════════════════════════
+#
+# Beneficios de segregación con múltiples redes:
+#  1. SEGURIDAD: Los servicios solo ven lo que necesitan
+#  2. ESCALABILIDAD: Fácil agregar más servicios sin conflictos
+#  3. ISOLATION: Breach en un servicio no compromete otros
+#  4. PERFORMANCE: Menos latencia con microservicios en redes cercanas
+#
+networks:
+  # 🔐 RED PRIVADA: PostgreSQL + Auth Service (aislado)
+  #    - SOLO acceso entre auth_service y postgres_auth
+  #    - NADIE más puede conectar a la BD directamente
+  #    - NGINX NO está en esta red (seguridad)
+  auth-network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br-auth
+
+  # 🌐 RED COMPARTIDA: NGINX + Backends (comunicación)
+  #    - NGINX puede comunicarse con Auth Service
+  #    - Usado para rutas de API Gateway
+  #    - Servicios que entran por NGINX
+  backend:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br-backend

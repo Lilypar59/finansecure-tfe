@@ -1,0 +1,351 @@
+### FinanSecure.Auth - API HTTP Requests
+
+## Base URL
+http://localhost:5001
+
+## Content-Type
+application/json
+
+## Authorization
+Authorization: Bearer {ACCESS_TOKEN}
+
+---
+
+### 1️⃣ REGISTRO DE USUARIO
+
+POST /api/v1/auth/register
+Content-Type: application/json
+
+{
+  "username": "juan.perez",
+  "email": "juan.perez@example.com",
+  "firstName": "Juan",
+  "lastName": "Pérez",
+  "password": "SecurePass123!"
+}
+
+### Response 200 OK
+{
+  "success": true,
+  "message": "Usuario registrado exitosamente.",
+  "user": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "username": "juan.perez",
+    "email": "juan.perez@example.com",
+    "firstName": "Juan",
+    "lastName": "Pérez",
+    "isActive": true,
+    "createdAt": "2025-12-30T10:30:00Z",
+    "lastLoginAt": null
+  }
+}
+
+### Response 400 Bad Request
+{
+  "success": false,
+  "message": "El usuario o correo ya está registrado."
+}
+
+---
+
+### 2️⃣ LOGIN
+
+POST /api/v1/auth/login
+Content-Type: application/json
+
+{
+  "username": "juan.perez",
+  "password": "SecurePass123!"
+}
+
+### Response 200 OK
+{
+  "success": true,
+  "message": "Login exitoso.",
+  "user": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "username": "juan.perez",
+    "email": "juan.perez@example.com",
+    "firstName": "Juan",
+    "lastName": "Pérez",
+    "isActive": true,
+    "createdAt": "2025-12-30T10:30:00Z",
+    "lastLoginAt": "2025-12-30T10:35:00Z"
+  },
+  "tokens": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDAiLCJuYW1lIjoianVhbi5wZXJleiIsImVtYWlsIjoianVhbi5wZXJlekBleGFtcGxlLmNvbSIsImlhdCI6MTczNTU2MDYwMCwiZXhwIjoxNzM1NTYxNTAwLCJpc3MiOiJGaW5hblNlY3VyZS5BdXRoIiwiYXVkIjoiRmluYW5TZWN1cmUuQXBwIn0.xxx",
+    "refreshToken": "xK9mL2pQ5vB8nC3jH7fG6dE0wA4sT1rU9eW2xY4zB5cM7nD8oF1qR2sT3uV4wX5yZ6aA7b",
+    "expiresIn": 900,
+    "tokenType": "Bearer"
+  }
+}
+
+### Response 401 Unauthorized
+{
+  "success": false,
+  "message": "Usuario o contraseña inválidos."
+}
+
+---
+
+### 3️⃣ REFRESCAR TOKEN
+
+POST /api/v1/auth/refresh-token
+Content-Type: application/json
+
+{
+  "refreshToken": "xK9mL2pQ5vB8nC3jH7fG6dE0wA4sT1rU9eW2xY4zB5cM7nD8oF1qR2sT3uV4wX5yZ6aA7b"
+}
+
+### Response 200 OK
+{
+  "success": true,
+  "message": "Tokens refrescados exitosamente.",
+  "tokens": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.newTokenHere",
+    "refreshToken": "newRefreshTokenValue123456789",
+    "expiresIn": 900,
+    "tokenType": "Bearer"
+  }
+}
+
+### Response 401 Unauthorized
+{
+  "success": false,
+  "message": "Refresh token inválido o expirado."
+}
+
+---
+
+### 4️⃣ LOGOUT (REVOCAR TOKEN)
+
+POST /api/v1/auth/logout
+Content-Type: application/json
+
+{
+  "refreshToken": "xK9mL2pQ5vB8nC3jH7fG6dE0wA4sT1rU9eW2xY4zB5cM7nD8oF1qR2sT3uV4wX5yZ6aA7b"
+}
+
+### Response 200 OK
+{
+  "success": true,
+  "message": "Logout exitoso."
+}
+
+### Response 400 Bad Request
+{
+  "success": false,
+  "message": "Error al hacer logout."
+}
+
+---
+
+### 5️⃣ VALIDAR TOKEN
+
+POST /api/v1/auth/validate?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+### Response 200 OK (Token válido)
+{
+  "success": true,
+  "message": "Token válido.",
+  "user": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "username": "juan.perez",
+    "email": "juan.perez@example.com",
+    "firstName": "Juan",
+    "lastName": "Pérez",
+    "isActive": true,
+    "createdAt": "2025-12-30T10:30:00Z",
+    "lastLoginAt": "2025-12-30T10:35:00Z"
+  }
+}
+
+### Response 401 Unauthorized (Token inválido)
+{
+  "success": false,
+  "message": "Token inválido."
+}
+
+---
+
+### 6️⃣ HEALTH CHECK
+
+GET /api/v1/health
+
+### Response 200 OK
+{
+  "status": "healthy",
+  "service": "FinanSecure.Auth",
+  "timestamp": "2025-12-30T10:40:00Z",
+  "version": "1.0.0"
+}
+
+---
+
+## 📝 EJEMPLOS CON CURL
+
+### Registrar Usuario
+```bash
+curl -X POST http://localhost:5001/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "juan.perez",
+    "email": "juan.perez@example.com",
+    "firstName": "Juan",
+    "lastName": "Pérez",
+    "password": "SecurePass123!"
+  }'
+```
+
+### Login
+```bash
+curl -X POST http://localhost:5001/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "juan.perez",
+    "password": "SecurePass123!"
+  }'
+```
+
+### Refrescar Token
+```bash
+curl -X POST http://localhost:5001/api/v1/auth/refresh-token \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refreshToken": "xK9mL2pQ5vB8nC3jH7fG6dE0wA4sT1rU9eW2xY4zB5cM7nD8oF1qR2sT3uV4wX5yZ6aA7b"
+  }'
+```
+
+### Logout
+```bash
+curl -X POST http://localhost:5001/api/v1/auth/logout \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refreshToken": "xK9mL2pQ5vB8nC3jH7fG6dE0wA4sT1rU9eW2xY4zB5cM7nD8oF1qR2sT3uV4wX5yZ6aA7b"
+  }'
+```
+
+### Validar Token
+```bash
+curl -X POST "http://localhost:5001/api/v1/auth/validate?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+### Health Check
+```bash
+curl http://localhost:5001/api/v1/health
+```
+
+---
+
+## 🔐 USAR JWT EN REQUESTS PROTEGIDOS
+
+```bash
+curl -X GET http://localhost:5001/api/v1/protected-endpoint \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+---
+
+## 📊 ESTRUCTURA JWT DECODIFICADO
+
+Header:
+```json
+{
+  "alg": "HS256",
+  "typ": "JWT"
+}
+```
+
+Payload:
+```json
+{
+  "sub": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "juan.perez",
+  "email": "juan.perez@example.com",
+  "iat": 1735560600,
+  "exp": 1735561500,
+  "iss": "FinanSecure.Auth",
+  "aud": "FinanSecure.App"
+}
+```
+
+Signature: (HMAC SHA-256)
+```
+HMACSHA256(
+  base64UrlEncode(header) + "." +
+  base64UrlEncode(payload),
+  secretKey
+)
+```
+
+---
+
+## ✅ CÓDIGOS HTTP
+
+| Código | Significado |
+|--------|-------------|
+| 200 | OK - Operación exitosa |
+| 400 | Bad Request - Datos inválidos |
+| 401 | Unauthorized - Credenciales inválidas |
+| 500 | Internal Server Error - Error del servidor |
+
+---
+
+## 🔒 SEGURIDAD EN REQUESTS
+
+1. **Siempre usar HTTPS en producción**
+   ```
+   https://api.finansecure.com/api/v1/auth/login
+   ```
+
+2. **Nunca enviar contraseñas en URL**
+   ```
+   ❌ POST /login?password=xxx
+   ✅ POST /login (en body)
+   ```
+
+3. **Guardar tokens de forma segura**
+   ```javascript
+   // Malo: localStorage (vulnerable a XSS)
+   // Mejor: httpOnly cookie
+   // Mejor aún: Memory + httpOnly refresh cookie
+   ```
+
+4. **Cambiar JWT Secret en producción**
+   ```json
+   "SecretKey": "use-openssl-rand-base64-32"
+   ```
+
+---
+
+## 📋 VERIFICACIÓN DE TOKENS
+
+Para verificar si un token es válido, decodificarlo en:
+https://jwt.io
+
+O con CLI:
+```bash
+# Instalar jq si no lo tienes
+sudo apt install jq
+
+# Decodificar token
+echo "eyJhbGci..." | base64 -d | jq .
+```
+
+---
+
+## 🧪 PRUEBAS RECOMENDADAS
+
+1. Registrar nuevo usuario ✓
+2. Login con credenciales correctas ✓
+3. Intentar login con contraseña incorrecta ✓
+4. Usar access token en header Bearer ✓
+5. Refrescar token antes de expirar ✓
+6. Intentar usar token expirado ✓
+7. Logout y verificar revocación ✓
+8. Health check ✓
+
+---
+
+Last Updated: 2025-12-30
+Version: 1.0.0

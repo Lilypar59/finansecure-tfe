@@ -1,0 +1,49 @@
+# ╔════════════════════════════════════════════════════════════════════════════╗
+# ║  Dockerfile Simple: FinanSecure.Auth                                        ║
+# ║  Solo descarga la imagen precompilada de la red                              ║
+# ║  Para desarrollo rápido sin compilar                                         ║
+# ╚════════════════════════════════════════════════════════════════════════════╝
+
+# Usar la imagen precompilada desde Docker Hub si existe
+# O usar una imagen genérica de ASP.NET Core
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine
+
+# Labels
+LABEL maintainer="FinanSecure Team"
+LABEL description="FinanSecure Auth Service (Runtime only)"
+
+# ════════════════════════════════════════════════════════════════════════════════
+# NOTA: Este Dockerfile asume que los binarios compilados están disponibles
+# Para un build completo, usar: Dockerfile.full (multi-stage build)
+# ════════════════════════════════════════════════════════════════════════════════
+
+# Crear usuario non-root
+RUN addgroup -g 1001 appgroup && \
+    adduser -u 1001 -S appuser -G appgroup
+
+# Instalar curl para health checks
+RUN apk add --no-cache curl
+
+# Directorio de trabajo
+WORKDIR /app
+
+# Copiar binarios precompilados (deben existir localmente)
+# NOTA: Estos se generan con: cd FinanSecure.Auth && dotnet publish -c Release -o bin/publish
+COPY --chown=appuser:appgroup FinanSecure.Auth/bin/Release/net8.0/publish .
+
+# Puerto
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=40s \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Configuración
+ENV ASPNETCORE_ENVIRONMENT=Development
+ENV ASPNETCORE_URLS=http://+:8080
+
+# Usuario non-root
+USER appuser
+
+# Ejecutar aplicación
+ENTRYPOINT ["dotnet", "FinanSecure.Auth.dll"]

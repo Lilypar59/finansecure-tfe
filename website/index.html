@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinanSecure - Gestión Financiera Moderna y Segura</title>
+    <meta name="description" content="FinanSecure es una plataforma de gestión financiera personal con arquitectura de microservicios, seguridad enterprise y autenticación JWT.">
+    <meta name="theme-color" content="#1a2332">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- HEADER / NAVEGACIÓN -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <span class="logo-text">FinanSecure</span>
+                </div>
+                <nav class="nav">
+                    <a href="#home" class="nav-link active">Inicio</a>
+                    <a href="#features" class="nav-link">Características</a>
+                    <a href="#architecture" class="nav-link">Arquitectura</a>
+                    <a href="#contact" class="nav-link">Contacto</a>
+                    <a href="#login" class="nav-button">Ingresar</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- SECCIÓN HOME / HERO -->
+    <section id="home" class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1>Gestión Financiera Personal</h1>
+                <h2>Seguridad, Simplicidad, Control Total</h2>
+                <p>FinanSecure es una plataforma moderna de gestión financiera con arquitectura empresarial, autenticación segura y cifrado end-to-end.</p>
+                
+                <div class="hero-buttons">
+                    <a href="#login" class="btn btn-primary">Acceder a la Aplicación</a>
+                    <a href="#features" class="btn btn-secondary">Descubre Más</a>
+                </div>
+
+                <div class="hero-stats">
+                    <div class="stat">
+                        <span class="stat-number">2</span>
+                        <span class="stat-label">Microservicios</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">256-bit</span>
+                        <span class="stat-label">Cifrado</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">99.9%</span>
+                        <span class="stat-label">Disponibilidad</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECCIÓN CARACTERÍSTICAS -->
+    <section id="features" class="features">
+        <div class="container">
+            <h2>Características Principales</h2>
+            <p class="section-subtitle">Todo lo que necesitas para gestionar tus finanzas de forma segura</p>
+            
+            <div class="features-grid">
+                <!-- Feature 1 -->
+                <div class="feature-card">
+                    <div class="feature-icon">🔐</div>
+                    <h3>Autenticación Segura</h3>
+                    <p>Tokens JWT, contraseñas con hash BCrypt de 12 rounds y sesiones revocables para máxima seguridad en cada acceso.</p>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Gestión de Transacciones</h3>
+                    <p>Registra, categoriza y analiza todas tus transacciones. Reportes detallados y resúmenes por período.</p>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="feature-card">
+                    <div class="feature-icon">💰</div>
+                    <h3>Presupuestos Inteligentes</h3>
+                    <p>Establece límites de gastos por categoría, recibe alertas y monitorea tu consumo en tiempo real.</p>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="feature-card">
+                    <div class="feature-icon">📈</div>
+                    <h3>Análisis Financiero</h3>
+                    <p>Visualiza tendencias de gasto, ingresos y ahorros con gráficos interactivos y fáciles de entender.</p>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="feature-card">
+                    <div class="feature-icon">🔔</div>
+                    <h3>Notificaciones Inteligentes</h3>
+                    <p>Alertas en tiempo real sobre transacciones, límites de presupuesto y actividad sospechosa.</p>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="feature-card">
+                    <div class="feature-icon">🌐</div>
+                    <h3>Acceso Desde Cualquier Lugar</h3>
+                    <p>Aplicación web moderna. Accede a tus finanzas desde cualquier navegador, en cualquier dispositivo.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECCIÓN ARQUITECTURA Y SEGURIDAD -->
+    <section id="architecture" class="architecture">
+        <div class="container">
+            <h2>Arquitectura Moderna y Segura</h2>
+            <p class="section-subtitle">Construido con tecnologías enterprise para garantizar seguridad y rendimiento</p>
+            
+            <div class="architecture-content">
+                <!-- Diagrama texto -->
+                <div class="architecture-diagram">
+                    <div class="arch-box arch-frontend">
+                        <strong>Frontend</strong>
+                        <small>Angular</small>
+                    </div>
+                    <div class="arch-arrow">→</div>
+                    
+                    <div class="arch-box arch-auth">
+                        <strong>Auth Service</strong>
+                        <small>.NET 8</small>
+                    </div>
+                    <div class="arch-arrow">→</div>
+                    
+                    <div class="arch-box arch-transactions">
+                        <strong>Transactions</strong>
+                        <small>.NET 8</small>
+                    </div>
+                    
+                    <div class="arch-subtext">
+                        ↓<br>Microservicios aislados con bases de datos independientes
+                    </div>
+                </div>
+
+                <!-- Características de seguridad -->
+                <div class="security-features">
+                    <h3>Características de Seguridad</h3>
+                    
+                    <div class="security-grid">
+                        <div class="security-item">
+                            <strong>🔐 Autenticación JWT</strong>
+                            <p>Tokens con firma HMAC-SHA256, refresh tokens revocables y expiración configurable.</p>
+                        </div>
+
+                        <div class="security-item">
+                            <strong>🛡️ Base de Datos Segura</strong>
+                            <p>PostgreSQL 15 con usuarios isolados por microservicio, sin acceso cruzado de datos.</p>
+                        </div>
+
+                        <div class="security-item">
+                            <strong>🔑 Hash de Contraseñas</strong>
+                            <p>BCrypt con 12 rounds, nunca almacenamos contraseñas en texto plano.</p>
+                        </div>
+
+                        <div class="security-item">
+                            <strong>📋 Auditoría Completa</strong>
+                            <p>Registro de todos los cambios con JSONB, 7 años de retención para compliance.</p>
+                        </div>
+
+                        <div class="security-item">
+                            <strong>🌐 API Segura</strong>
+                            <p>CORS configurado, validación de tokens en cada request, error handling seguro.</p>
+                        </div>
+
+                        <div class="security-item">
+                            <strong>🚀 Escalabilidad</strong>
+                            <p>Arquitectura de microservicios lista para Kubernetes, Docker y cloud providers.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tecnologías -->
+                <div class="technologies">
+                    <h3>Stack Tecnológico</h3>
+                    <div class="tech-list">
+                        <div class="tech-item">
+                            <strong>Backend:</strong> ASP.NET Core 8.0, C#
+                        </div>
+                        <div class="tech-item">
+                            <strong>Frontend:</strong> Angular, TypeScript
+                        </div>
+                        <div class="tech-item">
+                            <strong>Datos:</strong> PostgreSQL 15, Entity Framework Core
+                        </div>
+                        <div class="tech-item">
+                            <strong>Infraestructura:</strong> Docker, Docker Compose, Kubernetes-ready
+                        </div>
+                        <div class="tech-item">
+                            <strong>Seguridad:</strong> JWT, BCrypt, HTTPS, CORS
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECCIÓN CONTACTO -->
+    <section id="contact" class="contact">
+        <div class="container">
+            <h2>¿Preguntas o Sugerencias?</h2>
+            <p class="section-subtitle">Nos encantaría saber de ti</p>
+            
+            <div class="contact-content">
+                <form class="contact-form" action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
+                    <div class="form-group">
+                        <label for="name">Nombre</label>
+                        <input type="text" id="name" name="name" required placeholder="Tu nombre">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">Correo Electrónico</label>
+                        <input type="email" id="email" name="email" required placeholder="tu@email.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="message">Mensaje</label>
+                        <textarea id="message" name="message" rows="5" required placeholder="Tu mensaje aquí..."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Enviar Mensaje</button>
+                </form>
+
+                <div class="contact-info">
+                    <h3>Información de Contacto</h3>
+                    
+                    <div class="contact-item">
+                        <strong>Email:</strong>
+                        <a href="mailto:info@finansecure.com">info@finansecure.com</a>
+                    </div>
+
+                    <div class="contact-item">
+                        <strong>Soporte Técnico:</strong>
+                        <a href="mailto:support@finansecure.com">support@finansecure.com</a>
+                    </div>
+
+                    <div class="contact-item">
+                        <strong>Horario de Atención:</strong>
+                        <p>Lunes a Viernes: 9:00 AM - 6:00 PM (UTC-3)</p>
+                    </div>
+
+                    <div class="contact-item">
+                        <strong>Tiempo de Respuesta:</strong>
+                        <p>Respondemos en menos de 24 horas</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECCIÓN LOGIN / CTA -->
+    <section id="login" class="login-section">
+        <div class="container">
+            <h2>¿Ya eres usuario?</h2>
+            <p>Accede a tu cuenta de FinanSecure</p>
+            <a href="http://localhost:4200" class="btn btn-primary btn-large">Ir a la Aplicación Web</a>
+            <p class="login-note">La aplicación se ejecuta en http://localhost:4200 (desarrollo local)</p>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>FinanSecure</h4>
+                    <p>Gestión financiera moderna, segura y confiable.</p>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Enlaces</h4>
+                    <ul>
+                        <li><a href="#home">Inicio</a></li>
+                        <li><a href="#features">Características</a></li>
+                        <li><a href="#architecture">Arquitectura</a></li>
+                        <li><a href="#contact">Contacto</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Legal</h4>
+                    <ul>
+                        <li><a href="#privacy">Privacidad</a></li>
+                        <li><a href="#terms">Términos de Servicio</a></li>
+                        <li><a href="#security">Seguridad</a></li>
+                        <li><a href="#compliance">Compliance</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Desarrollado por</h4>
+                    <p>Equipo FinanSecure</p>
+                    <p class="tech-info">ASP.NET Core 8.0 | Angular | PostgreSQL</p>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>&copy; 2025 FinanSecure. Todos los derechos reservados.</p>
+                <p class="footer-security">🔐 Sitio seguro | HTTPS | Cumplimiento de estándares de seguridad</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

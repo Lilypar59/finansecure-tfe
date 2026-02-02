@@ -1,0 +1,551 @@
+```
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║                  FinanSecure.Auth - MICROSERVICIO COMPLETO                ║
+║                                                                            ║
+║                      ASP.NET Core .NET 8 | PostgreSQL                     ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│                         ARQUITECTURA DE CAPAS                             │
+└──────────────────────────────────────────────────────────────────────────┘
+
+                          ┌─────────────────┐
+                          │   CLIENT/FRONT  │
+                          │   Angular 19    │
+                          └────────┬────────┘
+                                   │
+                    ┌──────────────┴──────────────┐
+                    │                             │
+          POST /register                POST /login
+          POST /refresh                 POST /logout
+          POST /validate                GET /health
+                    │                             │
+                    └──────────────┬──────────────┘
+                                   │
+        ┌──────────────────────────▼──────────────────────────┐
+        │            CONTROLLERS LAYER (HTTP)                 │
+        ├──────────────────────────────────────────────────────┤
+        │  ┌─────────────────────┐        ┌────────────────┐  │
+        │  │ AuthController      │        │HealthController│  │
+        │  │ ─────────────────   │        │ ────────────   │  │
+        │  │ • Register()        │        │ • Health()     │  │
+        │  │ • Login()           │        │                │  │
+        │  │ • RefreshToken()    │        │                │  │
+        │  │ • Logout()          │        │                │  │
+        │  │ • Validate()        │        │                │  │
+        │  └─────────────────────┘        └────────────────┘  │
+        └──────────────────────────────────────────────────────┘
+                                   │
+                    ┌──────────────▼──────────────┐
+                    │  SERVICES LAYER (Business) │
+                    ├──────────────────────────────┤
+        ┌───────────┤                              ├───────────┐
+        │           │                              │           │
+    ┌───▼───┐  ┌───▼────────────┐  ┌──────────────▼───┐   ┌──▼──────┐
+    │ Auth  │  │ JWT Service     │  │ Password Service │   │ Logging │
+    │Service│  │ ────────────    │  │ ────────────     │   │         │
+    │────   │  │ • Generate JWT  │  │ • HashPassword() │   │ Events  │
+    │ •Reg  │  │ • Validate JWT  │  │ • VerifyPassword │   │ & Audit │
+    │ •Login│  │ • Generate RT   │  │                  │   │         │
+    │ •Refresh  └────────────────┘  └──────────────────┘   └─────────┘
+    │ •Change PW
+    └───────┘
+                                   │
+        ┌──────────────────────────▼──────────────────────────┐
+        │         REPOSITORIES LAYER (Data Access)            │
+        ├──────────────────────────────────────────────────────┤
+        │  ┌──────────────────────┐  ┌────────────────────┐  │
+        │  │ UserRepository       │  │RefreshTokenRepos   │  │
+        │  │ ──────────────────   │  │ ─────────────────  │  │
+        │  │ • GetById()          │  │ • GetByToken()     │  │
+        │  │ • GetByUsername()    │  │ • Create()         │  │
+        │  │ • GetByEmail()       │  │ • Revoke()         │  │
+        │  │ • Create()           │  │ • RevokeAll()      │  │
+        │  │ • Update()           │  │ • GetActive()      │  │
+        │  │ • Delete()           │  │ • CleanupExpired() │  │
+        │  │ • Exists()           │  │                    │  │
+        │  └──────────────────────┘  └────────────────────┘  │
+        └──────────────────────────────────────────────────────┘
+                                   │
+        ┌──────────────────────────▼──────────────────────────┐
+        │           DBCONTEXT LAYER (EF Core)                 │
+        ├──────────────────────────────────────────────────────┤
+        │            AuthContext                               │
+        │  ┌────────────────────────────────────────┐         │
+        │  │ DbSet<User> Users                      │         │
+        │  │ DbSet<RefreshToken> RefreshTokens     │         │
+        │  │ OnModelCreating()                      │         │
+        │  └────────────────────────────────────────┘         │
+        └──────────────────────────────────────────────────────┘
+                                   │
+                    ┌──────────────▼──────────────┐
+                    │   POSTGRESQL DATABASE       │
+                    ├──────────────────────────────┤
+        ┌───────────┤                              ├───────────┐
+        │           │                              │           │
+    ┌───▼────────┐  │  ┌────────────────────────┐ │ ┌──────────▼────┐
+    │ Migrations │  │  │ users TABLE            │ │ │refresh_tokens │
+    │ ────────── │  │  │ ──────────────         │ │ │  TABLE        │
+    │ InitCreate │  │  │ id (GUID, PK)         │ │ │  ───────────   │
+    │            │  │  │ username (VARCHAR 100) │ │ │ id (GUID, PK) │
+    │            │  │  │ email (VARCHAR 255)    │ │ │user_id (GUID) │
+    │            │  │  │ password_hash (TEXT)   │ │ │token (VARCHAR)│
+    │            │  │  │ is_active (BOOLEAN)    │ │ │expires_at     │
+    │            │  │  │ created_at (TIMESTAMP) │ │ │revoked_at (TS)│
+    │            │  │  │ updated_at (TIMESTAMP) │ │ │created_at (TS)│
+    │            │  │  │ last_login_at (TS)     │ │ │user_agent (VC)│
+    │            │  │  └────────────────────────┘ │ │ip_address (VC)│
+    │            │  │                              │ │               │
+    └────────────┘  │  INDICES:                    │ │ INDICES:       │
+                   │  - username (UNIQUE)          │ │- user_id +    │
+                   │  - email (UNIQUE)             │ │  token        │
+                   │                              │ │                │
+                   └──────────────────────────────┘ └────────────────┘
+```
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│                        FLUJO DE AUTENTICACIÓN                             │
+└──────────────────────────────────────────────────────────────────────────┘
+
+REGISTRO:
+─────────
+  User Input (username, email, password)
+         │
+         ▼
+  ┌──────────────────────────────────┐
+  │ AuthController.Register()        │
+  └──────────────────────────────────┘
+         │
+         ▼
+  ┌──────────────────────────────────┐
+  │ AuthService.RegisterAsync()      │
+  │ - Validar usuario no existe      │
+  │ - Hash password (BCrypt)         │
+  │ - Crear User entity              │
+  └──────────────────────────────────┘
+         │
+         ▼
+  ┌──────────────────────────────────┐
+  │ UserRepository.CreateAsync()     │
+  │ - Guardar en BD                  │
+  └──────────────────────────────────┘
+         │
+         ▼
+  AuthResponse { success, user }
+
+
+LOGIN:
+──────
+  User Input (username, password)
+         │
+         ▼
+  ┌──────────────────────────────────┐
+  │ AuthController.Login()           │
+  └──────────────────────────────────┘
+         │
+         ▼
+  ┌──────────────────────────────────┐
+  │ AuthService.LoginAsync()         │
+  │ - Buscar usuario                 │
+  │ - Verificar password (BCrypt)    │
+  │ - Generar JWT (15 min)           │
+  │ - Generar Refresh Token          │
+  │ - Guardar RT en BD               │
+  │ - Update LastLoginAt             │
+  └──────────────────────────────────┘
+         │
+         ▼
+  AuthResponse {
+    success,
+    user,
+    tokens {
+      accessToken (JWT),
+      refreshToken (opaque),
+      expiresIn (900 sec)
+    }
+  }
+
+
+REFRESH TOKEN:
+──────────────
+  Client Input (refreshToken)
+         │
+         ▼
+  ┌──────────────────────────────────┐
+  │ AuthService.RefreshTokenAsync()  │
+  │ - Buscar RT en BD                │
+  │ - Validar no expirado            │
+  │ - Validar no revocado            │
+  │ - Revocar anterior               │
+  │ - Generar nuevo JWT              │
+  │ - Crear nuevo RT                 │
+  └──────────────────────────────────┘
+         │
+         ▼
+  AuthResponse {
+    tokens { new AccessToken, new RefreshToken }
+  }
+
+
+LOGOUT:
+───────
+  Client Input (refreshToken)
+         │
+         ▼
+  ┌──────────────────────────────────┐
+  │ RefreshTokenRepository.Revoke()  │
+  │ - Marcar RevokedAt = now         │
+  └──────────────────────────────────┘
+         │
+         ▼
+  Success
+
+
+VALIDATE TOKEN:
+───────────────
+  Client Input (accessToken)
+         │
+         ▼
+  ┌──────────────────────────────────┐
+  │ JwtService.ValidateToken()       │
+  │ - Verificar firma                │
+  │ - Verificar expiración           │
+  │ - Verificar issuer/audience      │
+  │ - Extraer claims                 │
+  └──────────────────────────────────┘
+         │
+         ▼
+  ┌──────────────────────────────────┐
+  │ UserRepository.GetById()         │
+  │ - Buscar usuario                 │
+  │ - Verificar activo               │
+  └──────────────────────────────────┘
+         │
+         ▼
+  AuthResponse { success, user }
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│                       ESTRUCTURA DE JWT                                   │
+└──────────────────────────────────────────────────────────────────────────┘
+
+Header (HMAC HS256):
+┌─────────────────┐
+│ {               │
+│   "alg": "HS256"│
+│   "typ": "JWT"  │
+│ }               │
+└─────────────────┘
+        │ base64url encoded
+        ▼
+    eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+
+Payload (Claims):
+┌─────────────────────────────────────────────────┐
+│ {                                               │
+│   "sub": "550e8400-e29b-41d4-a716-...",  (UserId)
+│   "name": "juan.perez",                   (Username)
+│   "email": "juan@example.com",
+│   "iat": 1735560600,                      (Issued At)
+│   "exp": 1735561500,                      (Expires)
+│   "iss": "FinanSecure.Auth",
+│   "aud": "FinanSecure.App"
+│ }                                               │
+└─────────────────────────────────────────────────┘
+        │ base64url encoded
+        ▼
+    eyJzdWIiOiI1NTBlODQwMC1lMjliLTQxZDQtYTcxNi0...
+
+Signature:
+┌──────────────────────────────────────────────────────┐
+│ HMACSHA256(                                          │
+│   base64url(header) + "." + base64url(payload),     │
+│   SECRET_KEY                                         │
+│ )                                                    │
+└──────────────────────────────────────────────────────┘
+        │ base64url encoded
+        ▼
+    SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+
+FINAL JWT TOKEN:
+┌─────────────────────────────────────────────────────────────────────────┐
+│ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.                                  │
+│ eyJzdWIiOiI1NTBlODQwMC1lMjliLTQxZDQtYTcxNi0uLiIsIm5hbWUiOi...         │
+│ SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c                            │
+└─────────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│                      CONFIGURACIÓN DE SEGURIDAD                           │
+└──────────────────────────────────────────────────────────────────────────┘
+
+BCrypt Password Hashing:
+┌─────────────────────────────────────────┐
+│ Input: "SecurePass123!"                 │
+│    │                                    │
+│    ▼                                    │
+│ BCrypt.HashPassword(password, 12)       │
+│ (12 = costo, ~100ms por password)       │
+│    │                                    │
+│    ▼                                    │
+│ Hash: $2a$12$...hashedPasswordValue...  │
+│    │                                    │
+│    ▼                                    │
+│ Almacenar en BD                         │
+└─────────────────────────────────────────┘
+
+JWT Verification:
+┌──────────────────────────────────────────┐
+│ Incoming Token                           │
+│    │                                     │
+│    ▼                                     │
+│ 1. Validate Signature                    │
+│    ↓ Compare HMAC-SHA256(data, secret)   │
+│    ✓ Valid                               │
+│    │                                     │
+│    ▼                                     │
+│ 2. Check Expiration                      │
+│    ↓ exp <= now?                         │
+│    ✓ Not expired                         │
+│    │                                     │
+│    ▼                                     │
+│ 3. Verify Issuer                         │
+│    ↓ iss == "FinanSecure.Auth"?          │
+│    ✓ Correct                             │
+│    │                                     │
+│    ▼                                     │
+│ 4. Verify Audience                       │
+│    ↓ aud == "FinanSecure.App"?           │
+│    ✓ Correct                             │
+│    │                                     │
+│    ▼                                     │
+│ 5. Extract Claims                        │
+│    ↓ Get sub, name, email                │
+│    ✓ Valid Token                         │
+└──────────────────────────────────────────┘
+
+CORS Security:
+┌─────────────────────────────────────────┐
+│ Request from Origin                     │
+│ (e.g., http://localhost:4200)           │
+│    │                                    │
+│    ▼                                    │
+│ Check Allowed Origins                   │
+│ - localhost:4200 ✓                      │
+│ - localhost:4201 ✓                      │
+│ - example.com ✗                         │
+│    │                                    │
+│    ▼                                    │
+│ If allowed:                             │
+│ Access-Control-Allow-Origin: *origin*   │
+│ Access-Control-Allow-Credentials: true  │
+│    │                                    │
+│    ▼                                    │
+│ Request Processed                       │
+└─────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│                       RESUMEN DE ARCHIVOS                                 │
+└──────────────────────────────────────────────────────────────────────────┘
+
+CARPETA                  ARCHIVOS                    LÍNEAS    PROPÓSITO
+───────────────────────────────────────────────────────────────────────────
+Models/                  2 archivos                  ~150      Entidades BD
+  - User.cs              User model
+  - RefreshToken.cs      RefreshToken model
+
+DTOs/                    2 archivos                  ~100      Transferencia datos
+  - RequestDtos.cs       Register, Login, etc.
+  - ResponseDtos.cs      Auth, Token responses
+
+Interfaces/              5 archivos                  ~100      Contratos
+  - IAuthService.cs      Auth operations
+  - IUserRepository.cs   User data access
+  - IRefreshTokenRepos.  Token data access
+  - IJwtService.cs       JWT operations
+  - IPasswordService.cs  Password operations
+
+Services/                3 archivos                  ~800      Lógica negocio
+  - AuthService.cs       Autenticación main
+  - JwtService.cs        Generación JWT
+  - PasswordService.cs   Hash de contraseñas
+
+Repositories/            2 archivos                  ~250      Acceso datos
+  - UserRepository.cs    CRUD usuarios
+  - RefreshTokenRepos.cs CRUD tokens
+
+Controllers/             2 archivos                  ~300      HTTP endpoints
+  - AuthController.cs    /auth endpoints
+  - HealthController.cs  /health endpoint
+
+Data/                    1 archivo                   ~250      EF Core
+  - AuthContext.cs       DbContext
+
+Migrations/              2 archivos                  ~200      Versionado BD
+  - InitialCreate.cs
+  - Snapshot.cs
+
+Raíz/                    8 archivos                  ~500      Config + Docs
+  - Program.cs           Configuración principal
+  - .csproj              Proyecto y dependencias
+  - appsettings.json     Config producción
+  - appsettings.Dev.json Config desarrollo
+  - README.md            Documentación principal
+  - ARCHITECTURE.md      Detalles arquitectura
+  - QUICKSTART.md        Guía rápida
+  - etc.
+
+───────────────────────────────────────────────────────────────────────────
+TOTAL:                   26 archivos                 ~3,500+   MICROSERVICIO
+                                                              COMPLETO
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│                    INTEGRACIÓN CON FRONTEND                               │
+└──────────────────────────────────────────────────────────────────────────┘
+
+Angular 19 (Puerto 4200)
+         │
+         │ POST /api/v1/auth/register
+         │ POST /api/v1/auth/login
+         │ POST /api/v1/auth/refresh-token
+         │ POST /api/v1/auth/logout
+         │ POST /api/v1/auth/validate
+         │ GET  /api/v1/health
+         │
+         ▼
+Auth Service (Puerto 5001)
+         │
+         ├─ AuthService
+         │  ├─ Register
+         │  ├─ Login
+         │  ├─ RefreshToken
+         │  ├─ Logout
+         │  ├─ Validate
+         │  └─ ChangePassword
+         │
+         ├─ JwtService
+         │  ├─ GenerateAccessToken
+         │  ├─ GenerateRefreshToken
+         │  └─ ValidateToken
+         │
+         └─ PasswordService
+            ├─ HashPassword
+            └─ VerifyPassword
+         │
+         ▼
+PostgreSQL (Puerto 5432)
+         │
+         ├─ users table
+         └─ refresh_tokens table
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│                       FLUJO HTTP TÍPICO                                   │
+└──────────────────────────────────────────────────────────────────────────┘
+
+1. REGISTER:
+   ┌─────────────────────────────────────────────────────────────┐
+   │ POST /api/v1/auth/register                                  │
+   │ Content-Type: application/json                              │
+   │                                                             │
+   │ {                                                           │
+   │   "username": "juan",                                       │
+   │   "email": "juan@example.com",                              │
+   │   "firstName": "Juan",                                      │
+   │   "lastName": "Pérez",                                      │
+   │   "password": "SecurePass123!"                              │
+   │ }                                                           │
+   │                                                             │
+   │ Response 200:                                               │
+   │ {                                                           │
+   │   "success": true,                                          │
+   │   "user": { ...user data... }                               │
+   │ }                                                           │
+   └─────────────────────────────────────────────────────────────┘
+
+2. LOGIN:
+   ┌─────────────────────────────────────────────────────────────┐
+   │ POST /api/v1/auth/login                                     │
+   │ Content-Type: application/json                              │
+   │                                                             │
+   │ {                                                           │
+   │   "username": "juan",                                       │
+   │   "password": "SecurePass123!"                              │
+   │ }                                                           │
+   │                                                             │
+   │ Response 200:                                               │
+   │ {                                                           │
+   │   "success": true,                                          │
+   │   "user": { ...user data... },                              │
+   │   "tokens": {                                               │
+   │     "accessToken": "eyJhbGciOiJIUzI1NiIs...",               │
+   │     "refreshToken": "opaque-token-value",                   │
+   │     "expiresIn": 900,                                       │
+   │     "tokenType": "Bearer"                                   │
+   │   }                                                         │
+   │ }                                                           │
+   └─────────────────────────────────────────────────────────────┘
+
+3. USE TOKEN (en cliente):
+   ┌─────────────────────────────────────────────────────────────┐
+   │ // En localStorage/sessionStorage                           │
+   │ localStorage.setItem('accessToken', response.tokens...);    │
+   │ localStorage.setItem('refreshToken', response.tokens...);   │
+   │                                                             │
+   │ // En requests posteriores                                  │
+   │ headers.Authorization = `Bearer ${accessToken}`;            │
+   └─────────────────────────────────────────────────────────────┘
+
+4. REFRESH (cuando expira):
+   ┌─────────────────────────────────────────────────────────────┐
+   │ POST /api/v1/auth/refresh-token                             │
+   │ Content-Type: application/json                              │
+   │                                                             │
+   │ {                                                           │
+   │   "refreshToken": "opaque-token-value"                      │
+   │ }                                                           │
+   │                                                             │
+   │ Response 200:                                               │
+   │ {                                                           │
+   │   "tokens": {                                               │
+   │     "accessToken": "new-token",                             │
+   │     "refreshToken": "new-refresh-token"                     │
+   │   }                                                         │
+   │ }                                                           │
+   │                                                             │
+   │ // Actualizar en cliente                                    │
+   │ localStorage.setItem('accessToken', newAccessToken);        │
+   │ localStorage.setItem('refreshToken', newRefreshToken);      │
+   └─────────────────────────────────────────────────────────────┘
+
+5. LOGOUT:
+   ┌─────────────────────────────────────────────────────────────┐
+   │ POST /api/v1/auth/logout                                    │
+   │ Content-Type: application/json                              │
+   │                                                             │
+   │ {                                                           │
+   │   "refreshToken": "opaque-token-value"                      │
+   │ }                                                           │
+   │                                                             │
+   │ Response 200:                                               │
+   │ {                                                           │
+   │   "success": true,                                          │
+   │   "message": "Logout exitoso."                              │
+   │ }                                                           │
+   │                                                             │
+   │ // Limpiar cliente                                          │
+   │ localStorage.removeItem('accessToken');                     │
+   │ localStorage.removeItem('refreshToken');                    │
+   │ redirect('/login');                                         │
+   └─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+**Diagrama creado**: 2025-12-30
+**Versión**: 1.0.0
+**Estado**: ✅ COMPLETO

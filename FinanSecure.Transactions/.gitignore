@@ -1,0 +1,14 @@
+*.swp
+*.swo
+*~
+.DS_Store
+.vscode/
+.idea/
+bin/
+obj/
+*.user
+*.suo
+*.sln.iml
+appsettings.Production.json
+logs/
+*.log
