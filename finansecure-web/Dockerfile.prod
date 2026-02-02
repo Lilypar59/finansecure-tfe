@@ -1,0 +1,44 @@
+# ╔════════════════════════════════════════════════════════════════════════════╗
+# ║  Dockerfile: FinanSecure Frontend - Compilación RÁPIDA                        ║
+# ║  Asume que el build está hecho localmente (npm run build)                    ║
+# ║  Tiempo de build: ~2 segundos (vs 10+ minutos con compilación)               ║
+# ╚════════════════════════════════════════════════════════════════════════════╝
+
+FROM nginx:alpine
+
+# Establecer labels
+LABEL maintainer="FinanSecure Team"
+LABEL version="1.0"
+LABEL description="FinanSecure Frontend - Angular 17+ (Pre-compiled)"
+
+# Limpiar contenido por defecto de nginx
+RUN rm -rf /usr/share/nginx/html/*
+
+# Copiar configuración de nginx
+COPY finansecure-web/nginx.conf /etc/nginx/nginx.conf
+
+# Copiar aplicación compilada LOCALMENTE
+# NOTA: Asume que ya ejecutaste: npm run build
+COPY finansecure-web/dist/finansecure-web/browser /usr/share/nginx/html
+
+# Renombrar index.csr.html a index.html para SPA
+RUN if [ -f /usr/share/nginx/html/index.csr.html ]; then mv /usr/share/nginx/html/index.csr.html /usr/share/nginx/html/index.html; fi
+
+# Crear usuario non-root
+RUN addgroup -g 1001 appgroup && \
+    adduser -u 1001 -S appuser -G appgroup && \
+    chown -R appuser:appgroup /usr/share/nginx/html /var/cache/nginx /var/log/nginx && \
+    apk add --no-cache curl
+
+# Puerto
+EXPOSE 80
+
+# Health check (usar curl en lugar de wget)
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
+    CMD curl -f http://localhost/health || exit 1
+
+# Usuario non-root
+USER appuser
+
+# Comando para iniciar nginx
+CMD ["nginx", "-g", "daemon off;"]
