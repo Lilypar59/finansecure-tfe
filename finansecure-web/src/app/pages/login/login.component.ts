@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { ENVIRONMENT_CONFIG } from '../../config/environment.config';
 
 @Component({
   selector: 'app-login',
@@ -16,6 +17,7 @@ export class LoginComponent {
   loading = false;
   error: string | null = null;
   submitted = false;
+  websiteUrl = ENVIRONMENT_CONFIG.websiteUrl; // ✅ URL del website dinámico
 
   constructor(
     private formBuilder: FormBuilder,
@@ -60,5 +62,13 @@ export class LoginComponent {
 
   goToRegister() {
     this.router.navigate(['/register']);
+  }
+
+  /**
+   * 🌍 Navega al sitio web de marketing/información
+   * Usa la URL del entorno actual (localhost:3000 o AWS)
+   */
+  goToWebsite() {
+    window.open(this.websiteUrl, '_blank');
   }
 }

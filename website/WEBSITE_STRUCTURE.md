@@ -211,7 +211,7 @@ SECCIÓN 5: LOGIN / CTA
 ║                  │ IR A LA APLICACIÓN WEB          │                        ║
 ║                  └────────────────────────────────┘                        ║
 ║                                                                             ║
-║      La aplicación se ejecuta en http://localhost:4200 (desarrollo local)  ║
+║      La aplicación se ejecuta en http://localhost/login (desarrollo local)  ║
 ║                                                                             ║
 ║ (Padding: 60px vertical, Button: large size)                              ║
 ╚════════════════════════════════════════════════════════════════════════════╝

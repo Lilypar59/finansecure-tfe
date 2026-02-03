@@ -116,6 +116,52 @@ label {
   width: 100%;
 }
 
+/* ════════════════════════════════════════════════════════════════════════════════
+   🔗 AUTH-LINKS: Sección de botones de autenticación/navegación
+   ════════════════════════════════════════════════════════════════════════════════ */
+.auth-links {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.auth-links .btn {
+  margin: 0 !important;
+  padding: 10px 16px !important;
+  font-size: 13px;
+  transition: all 0.3s ease;
+}
+
+.auth-links .btn-link {
+  background: none;
+  color: #667eea;
+  border: none;
+  margin: 0;
+  padding: 10px 16px;
+}
+
+.auth-links .btn-link:hover {
+  text-decoration: underline;
+  color: #764ba2;
+}
+
+.auth-links .btn-secondary {
+  background-color: #f0f0f0;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin: 0;
+  padding: 10px 16px;
+}
+
+.auth-links .btn-secondary:hover {
+  background-color: #e0e0e0;
+  border-color: #999;
+}
+
 .divider {
   text-align: center;
   margin: 20px 0;

@@ -8,20 +8,25 @@ version: '3.9'
 #
 #  Navegador
 #    │
-#    └─→ localhost:80 (NGINX - API GATEWAY)
-#            │
-#            ├─→ http://finansecure-auth:8080 (PRIVADO - Red Docker)
-#            │       └─→ postgres-auth:5432 (PRIVADO - Red Docker)
-#            │
-#            └─→ http://finansecure-frontend:80 (Angular - Contenido Estático)
+#    ├─→ localhost:80 (NGINX - Frontend SPA)
+#    │       ├─→ http://finansecure-auth:8080 (PRIVADO - Red Docker)
+#    │       │       └─→ postgres-auth:5432 (PRIVADO - Red Docker)
+#    │       │
+#    │       └─→ Contenido estático Angular
+#    │
+#    ├─→ localhost:3000 (Website - Marketing/Info)
+#    │       └─→ Contenido estático HTML/CSS/JS
+#    │
+#    └─→ localhost:5050 (PgAdmin - Gestión BD) [SOLO DESARROLLO]
 #
 # REDES:
 #  - auth-network: PostgreSQL + Auth Service (aislado)
-#  - backend: NGINX + Auth Service (comunicación)
+#  - backend: NGINX + Auth Service + Website + PgAdmin (comunicación)
 #
 # SEGURIDAD:
-#  ✓ Solo NGINX expuesto al navegador (puerto 80)
-#  ✓ Backend NO expuesto directamente
+#  ✓ NGINX (puerto 80) es el único punto de entrada para SPA
+#  ✓ Website (puerto 3000) servido en contenedor separado
+#  ✓ Backend NO expuesto directamente (privado vía NGINX)
 #  ✓ Database NO accesible desde navegador
 #  ✓ DNS interno solo disponible entre contenedores
 #
@@ -214,6 +219,49 @@ services:
         max-size: "10m"
         max-file: "5"
         labels: "service=frontend"
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # 🌍 WEBSITE: Sitio estático de marketing/información
+  # ════════════════════════════════════════════════════════════════════════════════
+  #
+  # Sitio web informativo sobre FinanSecure
+  # Servido en puerto separado (3000) para desarrollo local
+  # En producción, puede estar en dominio separado o ser parte de NGINX
+  #
+  finansecure-website:
+    image: nginx:alpine
+    container_name: finansecure-website
+    restart: unless-stopped
+
+    # 🌐 PUERTO DE ACCESO
+    ports:
+      - "${WEBSITE_PORT:-3000}:80"
+
+    # 📁 VOLÚMENES: Archivos HTML/CSS/JS
+    # En DESARROLLO: sin :ro para permitir hot-reload de cambios
+    # En PRODUCCIÓN: comentar esta línea y usar build con Dockerfile
+    volumes:
+      - ./website:/usr/share/nginx/html
+
+    # 🔗 REDES: Accesible desde navegador
+    networks:
+      - backend
+
+    # 🏥 HEALTH CHECK
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # 📊 LOGGING
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+        labels: "service=website"
 
   # ════════════════════════════════════════════════════════════════════════════════
   # 📊 PGADMIN: Gestor de Bases de Datos (OPCIONAL - Solo desarrollo)
