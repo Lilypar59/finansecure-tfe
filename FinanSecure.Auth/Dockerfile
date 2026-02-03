@@ -33,8 +33,8 @@ COPY FinanSecure.Transactions/*.csproj ./FinanSecure.Transactions/
 
 # PASO 3: Restaurar dependencias NuGet (solo dependencias, sin código)
 # Usa capas de Docker para cachear (mejora tiempo de compilación)
-RUN dotnet restore "FinanSecure.Auth/FinanSecure.Auth.csproj" || \
-    (echo "Error restaurando dependencias" && exit 1)
+# Este paso es CRÍTICO en CI - debe restaurar todas las dependencias
+RUN dotnet restore "FinanSecure.Auth/FinanSecure.Auth.csproj"
 
 # PASO 4: Copiar código fuente completo
 COPY . .
@@ -42,12 +42,11 @@ COPY . .
 # PASO 5: Compilar en modo Release (optimizado)
 # -c Release: Modo release (sin debug symbols)
 # -o /app/build: Output a /app/build
-# Agregar verbose para debugging si falla
+# --no-restore: Usar dependencias ya restauradas en PASO 3
 RUN dotnet build "FinanSecure.Auth/FinanSecure.Auth.csproj" \
     -c Release \
     -o /app/build \
-    --no-restore || \
-    (echo "Error compilando FinanSecure.Auth" && exit 1)
+    --no-restore
 
 # ════════════════════════════════════════════════════════════════════════════════
 # STAGE 1B: PUBLISH (Preparar para Runtime)
@@ -61,13 +60,11 @@ FROM build AS publish
 # -c Release: Modo release
 # -o /app/publish: Output a /app/publish
 # --self-contained false: Usar runtime shared (más pequeño)
-# ⚠️  IMPORTANTE: NO usar --no-build con -o personalizado en build anterior
-#     dotnet publish regenerará los artefactos correctamente
+# NO usar --no-build: Permite regenerar correctamente en CI
 RUN dotnet publish "FinanSecure.Auth/FinanSecure.Auth.csproj" \
     -c Release \
     -o /app/publish \
-    --self-contained false || \
-    (echo "Error publicando FinanSecure.Auth" && exit 1)
+    --self-contained false
 
 # ════════════════════════════════════════════════════════════════════════════════
 # STAGE 2: RUNTIME (Ejecución)
