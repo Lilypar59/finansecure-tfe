@@ -1,0 +1,20 @@
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "CHANGE_ME_CONFIGURE_IN_ENV"
+  },
+  "Jwt": {
+    "SecretKey": "CHANGE_ME_MIN_32_CHARS_FROM_ENV",
+    "Issuer": "FinanSecure.Auth",
+    "Audience": "FinanSecure.App",
+    "AccessTokenExpirationMinutes": 15,
+    "RefreshTokenExpirationDays": 7
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.EntityFrameworkCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*"
+}

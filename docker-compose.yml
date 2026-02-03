@@ -1,5 +1,3 @@
-version: '3.9'
-
 # ════════════════════════════════════════════════════════════════════════════════
 # 🚀 FinanSecure: Docker Compose para Desarrollo
 # ════════════════════════════════════════════════════════════════════════════════
@@ -38,14 +36,15 @@ services:
   # 🗄️  PostgreSQL: Base de datos para Auth Service (PRIVADA - Red interna)
   # ════════════════════════════════════════════════════════════════════════════════
   postgres-auth:
-    image: postgres:15-alpine
+    image: postgres:15.3-alpine
+    pull_policy: if_not_present
     container_name: finansecure-postgres-auth
     restart: unless-stopped
 
     # 🔐 CREDENCIALES
     environment:
       POSTGRES_USER: auth_user
-      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-SecureAuth2024!}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-CHANGE_ME_IN_ENV_FILE}
       POSTGRES_DB: finansecure_auth_db
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
       TZ: UTC
@@ -86,6 +85,19 @@ services:
         max-file: "3"
         labels: "service=postgres-auth"
 
+    # 🔒 SECURITY OPTIONS: Hardening básico para desarrollo
+    # Para PRODUCCIÓN, usar managed database (RDS, Azure Database)
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+      - NET_BIND_SERVICE
+
   # ════════════════════════════════════════════════════════════════════════════════
   # 🔐 FinanSecure.Auth: Servicio de Autenticación (PRIVADO - Red interna)
   # ════════════════════════════════════════════════════════════════════════════════
@@ -110,10 +122,10 @@ services:
       # Base de datos (ÚNICA FUENTE DE VERDAD)
       # ✅ EF Core lee ConnectionStrings__DefaultConnection
       # ❌ NO usar DB_HOST, DB_PORT, etc. (no son usadas por EF Core)
-      ConnectionStrings__DefaultConnection: "Host=postgres-auth;Port=5432;Database=finansecure_auth_db;Username=auth_user;Password=${AUTH_DB_PASSWORD:-SecureAuth2024!};"
+      ConnectionStrings__DefaultConnection: "Host=postgres-auth;Port=5432;Database=finansecure_auth_db;Username=auth_user;Password=${AUTH_DB_PASSWORD:-CHANGE_ME_IN_ENV_FILE};"
 
       # JWT (Seguridad de tokens)
-      JwtSettings__SecretKey: ${JWT_SECRET_KEY:-your-super-secret-key-min-32-chars-change-in-prod}
+      JwtSettings__SecretKey: ${JWT_SECRET_KEY:-CHANGE_ME_MIN_32_CHARS_IN_ENV_FILE}
       JwtSettings__Issuer: ${JWT_ISSUER:-FinanSecure}
       JwtSettings__Audience: ${JWT_AUDIENCE:-FinanSecure.Client}
       JwtSettings__ExpirationMinutes: ${JWT_EXPIRATION_MINUTES:-15}
@@ -166,6 +178,16 @@ services:
         max-size: "10m"
         max-file: "3"
         labels: "service=auth"
+
+    # 🔒 SECURITY OPTIONS: Hardening de contenedor
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    tmpfs:
+      - /tmp
 
   # ════════════════════════════════════════════════════════════════════════════════
   # 🌐 NGINX: API Gateway + SPA Server (EXPUESTO - Único punto de entrada)
@@ -220,6 +242,14 @@ services:
         max-file: "5"
         labels: "service=frontend"
 
+    # 🔒 SECURITY OPTIONS: Hardening de NGINX Frontend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+
   # ════════════════════════════════════════════════════════════════════════════════
   # 🌍 WEBSITE: Sitio estático de marketing/información
   # ════════════════════════════════════════════════════════════════════════════════
@@ -229,7 +259,8 @@ services:
   # En producción, puede estar en dominio separado o ser parte de NGINX
   #
   finansecure-website:
-    image: nginx:alpine
+    image: nginx:1.25.4-alpine
+    pull_policy: if_not_present
     container_name: finansecure-website
     restart: unless-stopped
 
@@ -263,6 +294,14 @@ services:
         max-file: "2"
         labels: "service=website"
 
+    # 🔒 SECURITY OPTIONS: Hardening de Website NGINX
+    # Note: Website permissions are complex in this setup
+    # For PRODUCTION: Use dedicated image with proper file ownership
+    security_opt:
+      - no-new-privileges:true
+    # cap_drop: ALL  # Commented for development - website has permission issues
+    # cap_add: - NET_BIND_SERVICE
+
   # ════════════════════════════════════════════════════════════════════════════════
   # 📊 PGADMIN: Gestor de Bases de Datos (OPCIONAL - Solo desarrollo)
   # ════════════════════════════════════════════════════════════════════════════════
@@ -276,7 +315,8 @@ services:
   # ⚠️  NO incluir en producción
   #
   pgadmin:
-    image: dpage/pgadmin4:latest
+    image: dpage/pgadmin4:8.3
+    pull_policy: if_not_present
     container_name: finansecure-pgadmin
     restart: unless-stopped
 
@@ -320,6 +360,16 @@ services:
         max-size: "5m"
         max-file: "2"
         labels: "service=pgadmin"
+
+    # 🔒 SECURITY OPTIONS: Hardening de PgAdmin
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    tmpfs:
+      - /var/run/pgadmin
 
 # ════════════════════════════════════════════════════════════════════════════════
 # 📁 VOLÚMENES: Persistencia de datos entre reinicios

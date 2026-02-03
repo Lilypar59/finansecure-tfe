@@ -10,6 +10,44 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 // ==============================
+// 🔐 VALIDATE ENVIRONMENT VARIABLES (CRITICAL)
+// ==============================
+ValidateEnvironmentVariables(builder.Configuration);
+
+void ValidateEnvironmentVariables(IConfiguration config)
+{
+    var requiredVars = new[]
+    {
+        ("Jwt:SecretKey", "JWT_SECRET_KEY"),
+        ("ConnectionStrings:DefaultConnection", "DATABASE_CONNECTION_STRING")
+    };
+
+    var missingVars = new List<string>();
+
+    foreach (var (configKey, envVarName) in requiredVars)
+    {
+        var value = config[configKey];
+
+        if (string.IsNullOrEmpty(value) || value.StartsWith("CHANGE_ME"))
+        {
+            missingVars.Add($"{envVarName} (config: {configKey})");
+        }
+    }
+
+    if (missingVars.Any())
+    {
+        var errorMsg = $"🔐 SECURITY ERROR - Missing or invalid environment variables:\n\n" +
+                      string.Join("\n", missingVars.Select(v => $"  • {v}")) +
+                      $"\n\nFIX:\n" +
+                      $"  1. Copy .env.template to .env\n" +
+                      $"  2. Run: ./generate-secrets.sh\n" +
+                      $"  3. Restart: docker compose up";
+
+        throw new InvalidOperationException(errorMsg);
+    }
+}
+
+// ==============================
 // Configuration
 // ==============================
 var jwtSecret = builder.Configuration["Jwt:SecretKey"]
@@ -148,7 +186,7 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AuthContext>();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    
+
     try
     {
         logger.LogInformation("🔄 Iniciando migraciones de base de datos...");

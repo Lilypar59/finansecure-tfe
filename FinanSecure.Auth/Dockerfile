@@ -123,8 +123,7 @@ ENV APP_NAME="FinanSecure.Auth" \
     APP_ENVIRONMENT="docker"
 
 # JWT (Token security)
-ENV JWT_SECRET_KEY="your-secret-key-change-in-production" \
-    JWT_ISSUER="FinanSecure" \
+ENV JWT_ISSUER="FinanSecure" \
     JWT_AUDIENCE="FinanSecure.Client" \
     JWT_EXPIRATION_MINUTES="15" \
     JWT_REFRESH_EXPIRATION_DAYS="7"

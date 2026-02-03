@@ -107,17 +107,14 @@ ENV APP_NAME="FinanSecure.Transactions" \
 ENV DB_HOST="postgres" \
     DB_PORT="5432" \
     DB_DATABASE="finansecure_transactions_db_dev" \
-    DB_USER="postgres" \
-    DB_PASSWORD="postgres"
+    DB_USER="postgres"
 
 # JWT
-ENV JWT_SECRET_KEY="your-secret-key-change-in-production" \
-    JWT_ISSUER="FinanSecure" \
+ENV JWT_ISSUER="FinanSecure" \
     JWT_AUDIENCE="FinanSecure.Client"
 
 # Auth Service
-#ENV AUTH_SERVICE_URL="http://finansecure-auth:8080"
-ENV AUTH_SERVICE_URL="http://localhost:8080"
+ENV AUTH_SERVICE_URL="http://finansecure-auth:8080"
 
 # Logging
 ENV LOG_LEVEL="Information"

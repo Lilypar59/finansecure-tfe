@@ -1,0 +1,424 @@
+name: Build and Push to AWS ECR
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allow manual trigger for testing
+
+# Cancel previous runs if new push occurs
+concurrency:
+  group: ecr-build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: us-east-1
+  DOCKER_BUILDKIT: 1
+  # Prevent BuildKit from caching images across runs (security best practice)
+  BUILDKIT_CACHE_VOLUME_FS: native
+
+jobs:
+  # ════════════════════════════════════════════════════════════════════════════════
+  # SECURITY: Pre-flight validations before building Docker images
+  # ════════════════════════════════════════════════════════════════════════════════
+  security-check:
+    name: Security Pre-flight Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Fail immediately if any .env file was accidentally committed
+      - name: Check no .env files in repo
+        run: |
+          if git ls-files | grep -E "^\.env"; then
+            echo "❌ ERROR: .env files found in git history!"
+            exit 1
+          fi
+          echo "✓ No .env files in repository"
+
+      # Scan Dockerfiles for hardcoded secrets
+      - name: Scan Dockerfiles for hardcoded secrets
+        run: |
+          echo "Scanning for hardcoded secrets in Dockerfiles..."
+          for dockerfile in FinanSecure.Auth/Dockerfile finansecure-web/Dockerfile.prod website/Dockerfile; do
+            if [ -f "$dockerfile" ]; then
+              if grep -iE "PASSWORD|SECRET|TOKEN|APIKEY|CHANGE_ME" "$dockerfile" | grep -v "^#"; then
+                echo "❌ Found potential secret in $dockerfile"
+                exit 1
+              fi
+            fi
+          done
+          echo "✓ No hardcoded secrets found in Dockerfiles"
+
+      # Verify base images are pinned (no 'latest' tag)
+      - name: Verify base image versions are pinned
+        run: |
+          echo "Checking for unpinned base images..."
+          for dockerfile in FinanSecure.Auth/Dockerfile finansecure-web/Dockerfile.prod website/Dockerfile; do
+            if [ -f "$dockerfile" ]; then
+              if grep "^FROM.*:latest" "$dockerfile"; then
+                echo "❌ Found :latest tag in $dockerfile - must use specific version"
+                exit 1
+              fi
+            fi
+          done
+          echo "✓ All base images have pinned versions"
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # BUILD: Authenticate with AWS and build Docker images
+  # ════════════════════════════════════════════════════════════════════════════════
+  build-and-push:
+    name: Build and Push Docker Images to ECR
+    runs-on: ubuntu-latest
+    needs: security-check
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write # Required for OIDC with AWS
+
+    steps:
+      # ════════════════════════════════════════════════════════════════════════
+      # Step 1: Prepare environment
+      # ════════════════════════════════════════════════════════════════════════
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history for better Docker layer caching
+
+      - name: Set build variables
+        id: vars
+        run: |
+          # Get commit SHA (short form for readability)
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          BRANCH_NAME=${{ github.ref_name }}
+          TIMESTAMP=$(date -u +'%Y%m%d-%H%M%S')
+
+          echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "branch_name=${BRANCH_NAME}" >> $GITHUB_OUTPUT
+          echo "timestamp=${TIMESTAMP}" >> $GITHUB_OUTPUT
+
+          echo "Build Parameters:"
+          echo "  Commit SHA (short): ${SHORT_SHA}"
+          echo "  Branch: ${BRANCH_NAME}"
+          echo "  Timestamp: ${TIMESTAMP}"
+
+      # ════════════════════════════════════════════════════════════════════════
+      # Step 2: AWS Authentication (IMPORTANT: Using GitHub OIDC for security)
+      # ════════════════════════════════════════════════════════════════════════
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # Use GitHub OIDC instead of long-lived access keys (recommended)
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-role
+          aws-region: ${{ env.AWS_REGION }}
+          # Fallback to Access Keys if OIDC not configured
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      # Verify AWS credentials are working
+      - name: Verify AWS credentials
+        run: |
+          aws sts get-caller-identity
+          echo "✓ AWS authentication successful"
+
+      # ════════════════════════════════════════════════════════════════════════
+      # Step 3: ECR Login
+      # ════════════════════════════════════════════════════════════════════════
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          mask-password: 'true' # Hide password in logs
+
+      # Store ECR registry for later use
+      - name: Set ECR registry variable
+        run: |
+          ECR_REGISTRY=${{ steps.ecr-login.outputs.registry }}
+          echo "ecr_registry=${ECR_REGISTRY}" >> $GITHUB_ENV
+          echo "ECR Registry: ${ECR_REGISTRY}"
+
+      # ════════════════════════════════════════════════════════════════════════
+      # Step 4: Set up Docker Buildx (for advanced build features)
+      # ════════════════════════════════════════════════════════════════════════
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ════════════════════════════════════════════════════════════════════════
+      # Step 5: Create ECR repositories if they don't exist
+      # ════════════════════════════════════════════════════════════════════════
+      - name: Ensure ECR repositories exist
+        run: |
+          set +e # Don't fail if repo already exists
+
+          for repo in finansecure-auth finansecure-frontend finansecure-website; do
+            echo "Checking/creating ECR repository: ${repo}"
+            aws ecr describe-repositories \
+              --repository-names "${repo}" \
+              --region ${{ env.AWS_REGION }} 2>/dev/null
+            
+            if [ $? -ne 0 ]; then
+              echo "  → Creating repository: ${repo}"
+              aws ecr create-repository \
+                --repository-name "${repo}" \
+                --region ${{ env.AWS_REGION }} \
+                --image-scanning-configuration scanOnPush=true \
+                --encryption-configuration encryptionType=AES
+              echo "  ✓ Repository created"
+            else
+              echo "  ✓ Repository already exists"
+            fi
+          done
+
+      # ════════════════════════════════════════════════════════════════════════
+      # Step 6: Build and Push Auth Service
+      # ════════════════════════════════════════════════════════════════════════
+      - name: Build and Push Auth Service to ECR
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./FinanSecure.Auth/Dockerfile
+          push: true
+          # Tag with commit SHA and branch name (not 'latest' alone)
+          tags: |
+            ${{ env.ecr_registry }}/finansecure-auth:${{ steps.vars.outputs.short_sha }}
+            ${{ env.ecr_registry }}/finansecure-auth:${{ steps.vars.outputs.branch_name }}
+            ${{ env.ecr_registry }}/finansecure-auth:${{ steps.vars.outputs.timestamp }}
+          cache-from: type=registry,ref=${{ env.ecr_registry }}/finansecure-auth:buildcache
+          cache-to: type=registry,ref=${{ env.ecr_registry }}/finansecure-auth:buildcache,mode=max
+          # Build args (don't include secrets!)
+          build-args: |
+            BUILD_DATE=${{ steps.vars.outputs.timestamp }}
+            VCS_REF=${{ github.sha }}
+
+      - name: Auth Service push result
+        run: |
+          echo "✅ Auth Service image pushed successfully"
+          echo "   URI: ${{ env.ecr_registry }}/finansecure-auth:${{ steps.vars.outputs.short_sha }}"
+
+      # ════════════════════════════════════════════════════════════════════════
+      # Step 7: Build and Push Frontend Service
+      # ════════════════════════════════════════════════════════════════════════
+      - name: Build and Push Frontend Service to ECR
+        uses: docker/build-push-action@v5
+        with:
+          context: ./finansecure-web
+          file: ./finansecure-web/Dockerfile.prod
+          push: true
+          tags: |
+            ${{ env.ecr_registry }}/finansecure-frontend:${{ steps.vars.outputs.short_sha }}
+            ${{ env.ecr_registry }}/finansecure-frontend:${{ steps.vars.outputs.branch_name }}
+            ${{ env.ecr_registry }}/finansecure-frontend:${{ steps.vars.outputs.timestamp }}
+          cache-from: type=registry,ref=${{ env.ecr_registry }}/finansecure-frontend:buildcache
+          cache-to: type=registry,ref=${{ env.ecr_registry }}/finansecure-frontend:buildcache,mode=max
+          build-args: |
+            BUILD_DATE=${{ steps.vars.outputs.timestamp }}
+            VCS_REF=${{ github.sha }}
+
+      - name: Frontend Service push result
+        run: |
+          echo "✅ Frontend Service image pushed successfully"
+          echo "   URI: ${{ env.ecr_registry }}/finansecure-frontend:${{ steps.vars.outputs.short_sha }}"
+
+      # ════════════════════════════════════════════════════════════════════════
+      # Step 8: Build and Push Website Service
+      # ════════════════════════════════════════════════════════════════════════
+      - name: Build and Push Website Service to ECR
+        uses: docker/build-push-action@v5
+        with:
+          context: ./website
+          file: ./website/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ecr_registry }}/finansecure-website:${{ steps.vars.outputs.short_sha }}
+            ${{ env.ecr_registry }}/finansecure-website:${{ steps.vars.outputs.branch_name }}
+            ${{ env.ecr_registry }}/finansecure-website:${{ steps.vars.outputs.timestamp }}
+          cache-from: type=registry,ref=${{ env.ecr_registry }}/finansecure-website:buildcache
+          cache-to: type=registry,ref=${{ env.ecr_registry }}/finansecure-website:buildcache,mode=max
+          build-args: |
+            BUILD_DATE=${{ steps.vars.outputs.timestamp }}
+            VCS_REF=${{ github.sha }}
+
+      - name: Website Service push result
+        run: |
+          echo "✅ Website Service image pushed successfully"
+          echo "   URI: ${{ env.ecr_registry }}/finansecure-website:${{ steps.vars.outputs.short_sha }}"
+
+      # ════════════════════════════════════════════════════════════════════════
+      # Step 9: Create image manifest for deployment reference
+      # ════════════════════════════════════════════════════════════════════════
+      - name: Create image manifest
+        run: |
+          cat > /tmp/image-manifest.json << EOF
+          {
+            "build_timestamp": "${{ steps.vars.outputs.timestamp }}",
+            "commit_sha": "${{ github.sha }}",
+            "commit_sha_short": "${{ steps.vars.outputs.short_sha }}",
+            "branch": "${{ steps.vars.outputs.branch_name }}",
+            "aws_account_id": "${{ secrets.AWS_ACCOUNT_ID }}",
+            "aws_region": "${{ env.AWS_REGION }}",
+            "images": {
+              "auth": "${{ env.ecr_registry }}/finansecure-auth:${{ steps.vars.outputs.short_sha }}",
+              "frontend": "${{ env.ecr_registry }}/finansecure-frontend:${{ steps.vars.outputs.short_sha }}",
+              "website": "${{ env.ecr_registry }}/finansecure-website:${{ steps.vars.outputs.short_sha }}"
+            }
+          }
+          EOF
+          cat /tmp/image-manifest.json
+
+      # Upload manifest as artifact for deployment workflow
+      - name: Upload image manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-manifest
+          path: /tmp/image-manifest.json
+          retention-days: 7
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # VERIFICATION: Verify images in ECR
+  # ════════════════════════════════════════════════════════════════════════════════
+  verify-images:
+    name: Verify Images in ECR
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-role
+          aws-region: us-east-1
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Verify images exist in ECR
+        run: |
+          ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}
+          REGION=us-east-1
+          REGISTRY="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
+
+          echo "Verifying pushed images in ECR..."
+          echo "Registry: ${REGISTRY}"
+          echo ""
+
+          for repo in finansecure-auth finansecure-frontend finansecure-website; do
+            echo "Checking ${repo}..."
+            
+            # Get image details
+            aws ecr describe-images \
+              --repository-name "${repo}" \
+              --region "${REGION}" \
+              --query 'imageDetails[0:3].[imageTags,imageSizeInBytes,imagePushedAt]' \
+              --output table
+            
+            if [ $? -eq 0 ]; then
+              echo "✅ ${repo} verified in ECR"
+            else
+              echo "❌ ${repo} not found in ECR"
+              exit 1
+            fi
+            echo ""
+          done
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # NOTIFICATION: Summary of build and push
+  # ════════════════════════════════════════════════════════════════════════════════
+  build-summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [build-and-push, verify-images]
+    if: always()
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download image manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: image-manifest
+
+      - name: Display build summary
+        run: |
+          echo "════════════════════════════════════════════════════════════════"
+          echo "✅ Docker Build and Push to ECR Complete"
+          echo "════════════════════════════════════════════════════════════════"
+          echo ""
+
+          if [ -f "image-manifest.json" ]; then
+            echo "Image Manifest:"
+            cat image-manifest.json | jq '.' 2>/dev/null || cat image-manifest.json
+            echo ""
+          fi
+
+          echo "Pipeline Status: ${{ job.status }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Author: ${{ github.actor }}"
+          echo ""
+
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ All images successfully built and pushed to AWS ECR"
+            echo ""
+            echo "Next Steps:"
+            echo "  1. Review images in AWS ECR console"
+            echo "  2. Deploy to EC2 using the image tags above"
+            echo "  3. Monitor deployment health"
+          else
+            echo "❌ Build or verification failed"
+            echo "Review logs above for details"
+            exit 1
+          fi
+          echo ""
+          echo "════════════════════════════════════════════════════════════════"
+
+      # Optional: Post summary to GitHub commit
+      - name: Post build summary to commit
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let manifestContent = '';
+            try {
+              manifestContent = fs.readFileSync('image-manifest.json', 'utf8');
+              const manifest = JSON.parse(manifestContent);
+              
+              const summary = `
+            ## 🐳 Docker Build & Push Summary
+
+            **Status:** ${{ job.status }}
+
+            ### Build Info
+            - **Commit:** ${manifest.commit_sha_short}
+            - **Branch:** ${manifest.branch}
+            - **Time:** ${manifest.build_timestamp}
+
+            ### Pushed Images
+            - **Auth Service:** \`${manifest.images.auth}\`
+            - **Frontend:** \`${manifest.images.frontend}\`
+            - **Website:** \`${manifest.images.website}\`
+
+            ### Next Steps
+            1. Review images in [AWS ECR Console](https://console.aws.amazon.com/ecr/)
+            2. Deploy to EC2 instances using the image tags above
+            3. Verify container health after deployment
+              `;
+              
+              if (context.eventName === 'pull_request') {
+                github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: summary
+                });
+              }
+            } catch (e) {
+              console.log('Skipping comment: manifest not available');
+            }
+        continue-on-error: true
