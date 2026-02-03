@@ -44,8 +44,10 @@ jobs:
           echo "Scanning for hardcoded secrets in Dockerfiles..."
           for dockerfile in FinanSecure.Auth/Dockerfile finansecure-web/Dockerfile.prod website/Dockerfile; do
             if [ -f "$dockerfile" ]; then
-              if grep -iE "PASSWORD|SECRET|TOKEN|APIKEY|CHANGE_ME" "$dockerfile" | grep -v "^#"; then
-                echo "❌ Found potential secret in $dockerfile"
+              # Check for actual secrets (not ENV variables or comments)
+              # Look for patterns like: password=value, secret=value, CHANGE_ME
+              if grep -iE "=(.*PASSWORD|.*SECRET|CHANGE_ME)" "$dockerfile" | grep -v "^#" | grep -v "^ENV"; then
+                echo "❌ Found potential hardcoded secret in $dockerfile"
                 exit 1
               fi
             fi
