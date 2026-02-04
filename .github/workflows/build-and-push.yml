@@ -53,12 +53,16 @@ jobs:
         run: |
           echo "ecr_registry=${{ steps.ecr-login.outputs.registry }}" >> $GITHUB_ENV
 
+      - name: Clean Docker cache (ensure fresh build)
+        run: docker system prune -f --all || true
+
       - name: Build and Push Auth Service
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./FinanSecure.Auth/Dockerfile
           push: true
+          no-cache: true
           tags: |
             ${{ env.ecr_registry }}/finansecure-auth:${{ steps.vars.outputs.short_sha }}
             ${{ env.ecr_registry }}/finansecure-auth:${{ steps.vars.outputs.branch_name }}
@@ -85,7 +89,7 @@ jobs:
 
       - name: Summary
         run: |
-          echo "✅ Build complete"
+          echo "Build complete"
           echo "Registry: ${{ env.ecr_registry }}"
           echo "SHA: ${{ steps.vars.outputs.short_sha }}"
           echo "Branch: ${{ steps.vars.outputs.branch_name }}"
