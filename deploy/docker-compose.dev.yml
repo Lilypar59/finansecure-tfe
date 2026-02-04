@@ -1,0 +1,160 @@
+version: '3.9'
+
+services:
+  # PostgreSQL Database (solo en dev)
+  postgres:
+    image: postgres:15-alpine
+    container_name: finansecure-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev-password}
+      POSTGRES_DB: finansecure
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./auth_service_schema.sql:/docker-entrypoint-initdb.d/02-auth.sql
+      - ./transactions_service_schema.sql:/docker-entrypoint-initdb.d/03-transactions.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - finansecure-network
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # PgAdmin (solo en dev)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: finansecure-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_PROXY_X_FOR_COUNT: 1
+      PGADMIN_CONFIG_PROXY_X_PROTO_COUNT: 1
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - finansecure-network
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # NGINX - Frontend & Reverse Proxy
+  nginx:
+    image: ${ECR_REGISTRY:-localhost}/finansecure/nginx:latest
+    container_name: finansecure-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./finansecure-web/dist:/usr/share/nginx/html:ro
+      - /etc/ssl/certs:/etc/ssl/certs:ro
+      - /etc/ssl/private:/etc/ssl/private:ro
+    environment:
+      - ENVIRONMENT=dev
+      - AUTH_SERVICE_URL=http://auth-service:5001
+      - API_SERVICE_URL=http://api-service:5002
+    depends_on:
+      - auth-service
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - finansecure-network
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Auth Service (.NET)
+  auth-service:
+    image: ${ECR_REGISTRY:-localhost}/finansecure/auth-service:latest
+    container_name: finansecure-auth
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:5001
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Username=postgres;Password=${POSTGRES_PASSWORD:-dev-password};Database=finansecure"
+      JwtSettings__Secret: ${JWT_SECRET:-dev-jwt-secret}
+      JwtSettings__Issuer: "https://finansecure.local"
+      JwtSettings__Audience: "finansecure-app"
+      JwtSettings__ExpirationMinutes: "60"
+      Cors__AllowedOrigins: "http://localhost,http://localhost:4200,http://nginx"
+    ports:
+      - "5001:5001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - finansecure-network
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Transactions Service API (.NET)
+  api-service:
+    image: ${ECR_REGISTRY:-localhost}/finansecure/transactions-service:latest
+    container_name: finansecure-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:5002
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Username=postgres;Password=${POSTGRES_PASSWORD:-dev-password};Database=finansecure"
+      JwtSettings__Secret: ${JWT_SECRET:-dev-jwt-secret}
+      JwtSettings__Issuer: "https://finansecure.local"
+      AuthService__Url: "http://auth-service:5001"
+      Cors__AllowedOrigins: "http://localhost,http://localhost:4200,http://nginx"
+    ports:
+      - "5002:5002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - finansecure-network
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  finansecure-network:
+    driver: bridge

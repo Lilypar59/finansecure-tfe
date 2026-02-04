@@ -1,0 +1,108 @@
+version: '3.9'
+
+services:
+  # NGINX - Frontend & Reverse Proxy (PRODUCCIÓN)
+  nginx:
+    image: ${ECR_REGISTRY}/finansecure/nginx:latest
+    container_name: finansecure-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./finansecure-web/dist:/usr/share/nginx/html:ro
+      - /etc/ssl/certs/finansecure.crt:/etc/ssl/certs/finansecure.crt:ro
+      - /etc/ssl/private/finansecure.key:/etc/ssl/private/finansecure.key:ro
+    environment:
+      - ENVIRONMENT=production
+      - AUTH_SERVICE_URL=http://auth-service:5001
+      - API_SERVICE_URL=http://api-service:5002
+    depends_on:
+      - auth-service
+      - api-service
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "https://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - finansecure-network
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Auth Service (.NET) - PRODUCCIÓN
+  auth-service:
+    image: ${ECR_REGISTRY}/finansecure/auth-service:latest
+    container_name: finansecure-auth
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5001
+      # Database: RDS endpoint
+      ConnectionStrings__DefaultConnection: ${DB_CONNECTION}
+      # JWT from SSM Parameter Store
+      JwtSettings__Secret: ${JWT_SECRET}
+      JwtSettings__Issuer: "https://finansecure.example.com"
+      JwtSettings__Audience: "finansecure-app"
+      JwtSettings__ExpirationMinutes: "60"
+      Cors__AllowedOrigins: "https://finansecure.example.com"
+      # Production flags
+      EnableSwagger: "false"
+      DetailedErrors: "false"
+    ports:
+      - "5001:5001"
+    depends_on:
+      - api-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - finansecure-network
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Transactions Service API (.NET) - PRODUCCIÓN
+  api-service:
+    image: ${ECR_REGISTRY}/finansecure/transactions-service:latest
+    container_name: finansecure-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5002
+      # Database: RDS endpoint
+      ConnectionStrings__DefaultConnection: ${DB_CONNECTION}
+      # JWT from SSM Parameter Store
+      JwtSettings__Secret: ${JWT_SECRET}
+      JwtSettings__Issuer: "https://finansecure.example.com"
+      AuthService__Url: "http://auth-service:5001"
+      Cors__AllowedOrigins: "https://finansecure.example.com"
+      # Production flags
+      EnableSwagger: "false"
+      DetailedErrors: "false"
+    ports:
+      - "5002:5002"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - finansecure-network
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  finansecure-network:
+    driver: bridge

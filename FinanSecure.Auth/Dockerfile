@@ -119,6 +119,7 @@ COPY FinanSecure.Auth/ ./FinanSecure.Auth/
 RUN dotnet build "FinanSecure.Auth/FinanSecure.Auth.csproj" \
     -c Release \
     -o /app/build \
+    --no-restore \
     --verbosity normal \
     --no-incremental
 
