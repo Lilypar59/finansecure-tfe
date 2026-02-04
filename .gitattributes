@@ -1,0 +1,80 @@
+# ════════════════════════════════════════════════════════════════════════════════
+# .gitattributes - Configuración de Git para case-sensitivity cross-platform
+# ════════════════════════════════════════════════════════════════════════════════
+# CRÍTICO PARA COMPILACIÓN LINUX: Previene que Git cambie el case de nombres
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 1. Preservar case en carpetas de .NET (CRÍTICO para Linux)
+# ════════════════════════════════════════════════════════════════════════════════
+# Sin esto, Git podría cambiar:
+#   FinanSecure.Auth/Data/ → finansecure.auth/data/  (❌ falla en Linux)
+
+FinanSecure.Auth/** -delta
+FinanSecure.Api/** -delta
+FinanSecure.Transactions/** -delta
+finansecure-web/** -delta
+website/** -delta
+
+# Carpetas específicas - CASE SENSITIVE
+FinanSecure.Auth/Data/** -delta
+FinanSecure.Auth/Controllers/** -delta
+FinanSecure.Auth/Models/** -delta
+FinanSecure.Auth/Services/** -delta
+FinanSecure.Auth/Repositories/** -delta
+FinanSecure.Auth/Interfaces/** -delta
+FinanSecure.Auth/DTOs/** -delta
+FinanSecure.Auth/Migrations/** -delta
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 2. Archivos de configuración (no delta - no comprimimos)
+# ════════════════════════════════════════════════════════════════════════════════
+
+*.csproj -delta
+*.json -delta
+*.yml -delta
+*.yaml -delta
+.dockerignore -delta
+Dockerfile* -delta
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 3. Archivos de texto (LF en Linux, CRLF en Windows automático)
+# ════════════════════════════════════════════════════════════════════════════════
+
+*.cs text eol=lf
+*.ts text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.md text eol=lf
+*.sh text eol=lf
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 4. Archivos binarios (no cambiar)
+# ════════════════════════════════════════════════════════════════════════════════
+
+*.dll binary
+*.pdb binary
+*.exe binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.ttf binary
+*.woff binary
+*.woff2 binary
+
+# ════════════════════════════════════════════════════════════════════════════════
+# NOTAS IMPORTANTES:
+# ════════════════════════════════════════════════════════════════════════════════
+# 1. -delta: No usar compresión delta (para archivos que cambian poco)
+# 2. text eol=lf: Convertir a LF en checkout (mejor para Linux/CI)
+# 3. binary: No convertir (evita problemas con archivos compilados)
+#
+# EFFECT:
+# - Windows: Git checkout respeta case (FinanSecure.Auth = FinanSecure.Auth)
+# - Linux: Git checkout respeta case exactamente
+# - GitHub Actions: Git clone preserva case 100%
