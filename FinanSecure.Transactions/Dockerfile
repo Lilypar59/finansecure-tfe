@@ -66,8 +66,13 @@ COPY FinanSecure.Transactions/FinanSecure.Transactions.csproj ./FinanSecure.Tran
 # - Siguiente build (sin cambios en .csproj) será INSTANTÁNEO
 #
 # CAPA DOCKER: Grande (~500 MB) pero se cachea → Build rápido en CI
+# FLAGS:
+# - --no-cache: Siempre descarga versiones más recientes (CI-safe)
+# - --verbosity normal: Output detallado para debugging en CI
 
-RUN dotnet restore "FinanSecure.Transactions/FinanSecure.Transactions.csproj"
+RUN dotnet restore "FinanSecure.Transactions/FinanSecure.Transactions.csproj" \
+    --no-cache \
+    --verbosity normal
 
 # ════════════════════════════════════════════════════════════════════════════════
 # PASO 3: COPIAR CÓDIGO FUENTE COMPLETO
@@ -105,10 +110,16 @@ COPY FinanSecure.Transactions/ ./FinanSecure.Transactions/
 # FLAGS:
 # -c Release: Compilar en modo Release (optimizado, sin debug symbols)
 # -o /app/build: Output en /app/build (será copiado a runtime stage)
+# --verbosity normal: Output detallado para debugging en CI
+# --no-incremental: Fuerza compilación limpia (CI-safe)
+# --no-restore: Las dependencias ya se restauraron en paso anterior
 
 RUN dotnet build "FinanSecure.Transactions/FinanSecure.Transactions.csproj" \
     -c Release \
-    -o /app/build
+    -o /app/build \
+    --no-restore \
+    --verbosity normal \
+    --no-incremental
 
 # ════════════════════════════════════════════════════════════════════════════════
 # STAGE 1B: PUBLISH (Preparar para Runtime)
@@ -135,11 +146,19 @@ FROM build AS publish
 # POR QUÉ SIN || true:
 # - Si publish falla → el error DEBE ser visible
 # - En CI, esto es CRÍTICO para detectar problemas
+#
+# FLAGS:
+# -c Release: Modo Release (mismo que build)
+# -o /app/publish: Directorio de output (será copiado a runtime)
+# --self-contained false: Usa runtime shared (más pequeño)
+# --verbosity normal: Output detallado para debugging
+# ❌ SIN --no-build: publish NECESITA generar runtimeconfig.json y otros archivos
 
 RUN dotnet publish "FinanSecure.Transactions/FinanSecure.Transactions.csproj" \
     -c Release \
     -o /app/publish \
-    --self-contained false
+    --self-contained false \
+    --verbosity normal
 
 # ════════════════════════════════════════════════════════════════════════════════
 # STAGE 2: RUNTIME (Ejecución en Producción)
