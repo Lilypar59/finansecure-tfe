@@ -1,0 +1,122 @@
+name: CI/CD DevSecOps Pipeline
+
+on:
+  push:
+    branches: ['main', 'develop']
+  pull_request:
+    branches: ['main']
+
+jobs:
+  # ==================================================
+  # Job: Build & Test
+  # ==================================================
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Build application
+        run: |
+          echo "Build de los microservicios"
+
+      - name: Run unit tests
+        run: |
+          echo "Ejecución de pruebas unitarias"
+
+  # ==================================================
+  # Job: Static Application Security Testing (SAST)
+  # ==================================================
+  sast:
+    name: Static Code Analysis (SAST)
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Run SAST analysis
+        run: |
+          echo "Análisis estático de código"
+
+  # ==================================================
+  # Job: Software Composition Analysis (SCA)
+  # ==================================================
+  sca:
+    name: Dependency Analysis (SCA)
+    runs-on: ubuntu-latest
+    needs: sast
+
+    steps:
+      - name: Run dependency scan
+        run: |
+          echo "Análisis de dependencias"
+
+  # ==================================================
+  # Job: Build and Scan Container Images
+  # ==================================================
+  container-scan:
+    name: Build and Scan Containers
+    runs-on: ubuntu-latest
+    needs: sca
+
+    steps:
+      - name: Build container images
+        run: |
+          echo "Construcción de imágenes Docker"
+
+      - name: Scan container images
+        run: |
+          echo "Escaneo de vulnerabilidades en imágenes"
+
+  # ==================================================
+  # Job: Deploy to DEV (entorno simulado)
+  # ==================================================
+  deploy-dev:
+    name: Deploy to DEV
+    runs-on: ubuntu-latest
+    needs: container-scan
+    if: github.ref == 'refs/heads/develop'
+
+    environment:
+      name: dev
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Provision infrastructure (IaC)
+        run: |
+          echo "Provisionamiento de infraestructura mediante IaC"
+
+      - name: Deploy application
+        run: |
+          echo "Despliegue automatizado en entorno DEV"
+
+  # ==================================================
+  # Job: Deploy to PROD (conceptual)
+  # ==================================================
+  deploy-prod:
+    name: Deploy to PROD
+    runs-on: ubuntu-latest
+    needs: container-scan
+    if: github.ref == 'refs/heads/main'
+
+    environment:
+      name: prod
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Deploy application (conceptual)
+        run: |
+          echo "Despliegue productivo condicionado a quality gates"

@@ -163,11 +163,11 @@ jobs:
             --bucket finansecure-terraform-state \
             --region ${{ env.AWS_REGION }} \
             --create-bucket-configuration LocationConstraint=${{ env.AWS_REGION }}
-          
+
           aws s3api put-bucket-versioning \
             --bucket finansecure-terraform-state \
             --versioning-configuration Status=Enabled
-          
+
           aws s3api put-bucket-encryption \
             --bucket finansecure-terraform-state \
             --server-side-encryption-configuration '{
@@ -218,12 +218,12 @@ jobs:
         run: |
           ASG_NAME=$(cd iac/envs/dev && terraform output -raw asg_name)
           LAUNCH_TEMPLATE=$(cd iac/envs/dev && terraform output -raw launch_template_id)
-          
+
           # Trigger ASG to use new launch template version
           aws autoscaling update-auto-scaling-group \
             --auto-scaling-group-name $ASG_NAME \
             --launch-template LaunchTemplateId=$LAUNCH_TEMPLATE,Version='$Latest'
-          
+
           # Start instance refresh
           aws autoscaling start-instance-refresh \
             --auto-scaling-group-name $ASG_NAME \
@@ -297,7 +297,7 @@ jobs:
     environment:
       name: prod
       url: https://${{ steps.terraform.outputs.application_url }}
-    
+
     permissions:
       contents: read
       id-token: write
@@ -347,11 +347,11 @@ jobs:
         run: |
           ASG_NAME=$(cd iac/envs/prod && terraform output -raw asg_name)
           LAUNCH_TEMPLATE=$(cd iac/envs/prod && terraform output -raw launch_template_id)
-          
+
           aws autoscaling update-auto-scaling-group \
             --auto-scaling-group-name $ASG_NAME \
             --launch-template LaunchTemplateId=$LAUNCH_TEMPLATE,Version='$Latest'
-          
+
           aws autoscaling start-instance-refresh \
             --auto-scaling-group-name $ASG_NAME \
             --preferences '{"MinHealthyPercentage": 90, "InstanceWarmupSeconds": 300}'
