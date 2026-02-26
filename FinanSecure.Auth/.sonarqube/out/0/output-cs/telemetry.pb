@@ -1,0 +1,1 @@
+TR>/root/finansecure-tfe/FinanSecure.Auth/FinanSecure.Auth.csproj¢net8.0òCSharp12

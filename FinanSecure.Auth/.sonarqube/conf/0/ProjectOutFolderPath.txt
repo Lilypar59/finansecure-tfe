@@ -1,0 +1,1 @@
+/root/finansecure-tfe/FinanSecure.Auth/.sonarqube/out/0

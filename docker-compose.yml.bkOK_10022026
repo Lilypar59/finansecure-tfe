@@ -1,0 +1,151 @@
+services:
+  postgres-auth:
+    image: postgres:15.3-alpine
+    pull_policy: if_not_present
+    container_name: finansecure-postgres-auth
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${AUTH_DB_USER:-auth_user}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-FinanSecure_Pass_2026}
+      POSTGRES_DB: ${AUTH_DB_NAME:-finansecure_auth_db}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+      TZ: UTC
+    ports:
+      - "${AUTH_DB_PORT:-5432}:5432"
+    volumes:
+      - auth_db_data:/var/lib/postgresql/data
+    networks:
+      - auth-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AUTH_DB_USER:-auth_user} -d ${AUTH_DB_NAME:-finansecure_auth_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    cap_add:
+      - DAC_OVERRIDE
+      - NET_BIND_SERVICE
+
+  finansecure-auth:
+    build:
+      context: .
+      dockerfile: FinanSecure.Auth/Dockerfile
+    container_name: finansecure-auth
+    restart: unless-stopped
+    # Esta línea asegura que Docker lea explícitamente el archivo .env
+    env_file: .env
+    ports:
+      - "${AUTH_SERVICE_PORT:-8080}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:8080
+      # Mapeo explícito de variables críticas
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      Jwt__SecretKey: ${JWT_SECRET_KEY}
+      JwtSettings__SecretKey: ${JWT_SECRET_KEY}
+      ConnectionStrings__DefaultConnection: "Host=postgres-auth;Port=5432;Database=${AUTH_DB_NAME:-finansecure_auth_db};Username=${AUTH_DB_USER:-auth_user};Password=${AUTH_DB_PASSWORD:-FinanSecure_Pass_2026};"
+      JwtSettings__Issuer: ${JWT_ISSUER:-FinanSecure}
+      JwtSettings__Audience: ${JWT_AUDIENCE:-FinanSecure.Client}
+      LOG_LEVEL: ${AUTH_LOG_LEVEL:-Information}
+      TZ: UTC
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+    networks:
+      - auth-network
+      - backend
+    volumes:
+      - auth_logs:/app/logs
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    tmpfs:
+      - /tmp
+
+  finansecure-frontend:
+    build:
+      context: .
+      dockerfile: finansecure-web/Dockerfile.prod
+    container_name: finansecure-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      finansecure-auth:
+        condition: service_healthy
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  finansecure-website:
+    image: nginx:1.25.4-alpine
+    container_name: finansecure-website
+    restart: unless-stopped
+    ports:
+      - "${WEBSITE_PORT:-3000}:80"
+    volumes:
+      - ./website:/usr/share/nginx/html
+    networks:
+      - backend
+
+  pgadmin:
+    image: dpage/pgadmin4:8.3
+    container_name: finansecure-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@finansecure.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-AdminPassword2024!}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - auth-network
+      - backend
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+
+volumes:
+  auth_db_data:
+    driver: local
+  auth_logs:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  auth-network:
+    driver: bridge
+  backend:
+    driver: bridge
