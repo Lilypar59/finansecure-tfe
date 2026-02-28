@@ -84,8 +84,8 @@ jobs:
           file: ./website/Dockerfile
           push: true
           tags: |
-            ${{ env.ecr_registry }}/finansecure-website:${{ steps.vars.outputs.short_sha }}
-            ${{ env.ecr_registry }}/finansecure-website:${{ steps.vars.outputs.branch_name }}
+            ${{ env.ecr_registry }}/finansecure/finansecure-website:${{ steps.vars.outputs.short_sha }}
+            ${{ env.ecr_registry }}/finansecure/finansecure-website:${{ steps.vars.outputs.branch_name }}
 
       - name: Summary
         run: |
