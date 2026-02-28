@@ -1,0 +1,208 @@
+name: Full CI/CD Pipeline - FinanSecure
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+
+############################################################
+# 1️⃣ BUILD & TEST
+############################################################
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test --no-build --verbosity normal
+
+  ############################################################
+  # 2️⃣ SECURITY ANALYSIS (SAST · SCA · Containers)
+  ############################################################
+
+  security-scan:
+    name: Security Analysis
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy Filesystem Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+
+  ############################################################
+  # 3️⃣ BUILD & PUSH (TU JOB ORIGINAL – SIN MODIFICAR LÓGICA)
+  ############################################################
+
+  build-and-push:
+    name: Build and Push Docker Images to ECR
+    runs-on: ubuntu-latest
+    needs: security-scan
+    timeout-minutes: 45
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set build variables
+        id: vars
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          BRANCH_NAME=${{ github.ref_name }}
+          TIMESTAMP=$(date -u +'%Y%m%d-%H%M%S')
+
+          echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "branch_name=${BRANCH_NAME}" >> $GITHUB_OUTPUT
+          echo "timestamp=${TIMESTAMP}" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set ECR registry
+        run: |
+          echo "ecr_registry=${{ steps.ecr-login.outputs.registry }}" >> $GITHUB_ENV
+
+      - name: Clean Docker cache
+        run: docker system prune -f --all || true
+
+      - name: Build and Push Auth Service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./FinanSecure.Auth/Dockerfile
+          push: true
+          no-cache: true
+          tags: |
+            ${{ env.ecr_registry }}/finansecure/finansecure-auth:${{ steps.vars.outputs.short_sha }}
+
+      - name: Build and Push Frontend Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./finansecure-web
+          file: ./finansecure-web/Dockerfile.prod
+          push: true
+          tags: |
+            ${{ env.ecr_registry }}/finansecure/finansecure-frontend:${{ steps.vars.outputs.short_sha }}
+
+      - name: Build and Push Website Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./website
+          file: ./website/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ecr_registry }}/finansecure/finansecure-website:${{ steps.vars.outputs.short_sha }}
+
+  ############################################################
+  # 4️⃣ TERRAFORM (IaC)
+  ############################################################
+
+  terraform-infra:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        run: terraform plan
+
+      - name: Terraform Apply
+        if: github.event_name == 'workflow_dispatch'
+        run: terraform apply -auto-approve
+
+  ############################################################
+  # 5️⃣ DEPLOY EC2 (DOCKER)
+  ############################################################
+
+  deploy-ec2:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    needs: terraform-infra
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            aws ecr get-login-password --region us-east-1 | \
+            docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
+
+            docker pull ${{ secrets.ECR_REGISTRY }}/finansecure/finansecure-auth:${{ github.sha }}
+            docker pull ${{ secrets.ECR_REGISTRY }}/finansecure/finansecure-frontend:${{ github.sha }}
+            docker pull ${{ secrets.ECR_REGISTRY }}/finansecure/finansecure-website:${{ github.sha }}
+
+            cd /home/ec2-user/finansecure
+            docker-compose down
+            docker-compose up -d --remove-orphans
+            docker image prune -f
+
+  ############################################################
+  # 6️⃣ VALIDACIÓN Y TRAZABILIDAD (HEALTH CHECK)
+  ############################################################
+
+  validation:
+    name: Health Check
+    runs-on: ubuntu-latest
+    needs: deploy-ec2
+
+    steps:
+      - name: Backend Health Check
+        run: |
+          sleep 30
+          curl -f http://${{ secrets.EC2_HOST }}:5000/health || exit 1
+
+      - name: Frontend Health Check
+        run: |
+          curl -f http://${{ secrets.EC2_HOST }} || exit 1
