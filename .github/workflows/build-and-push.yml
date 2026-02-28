@@ -74,8 +74,8 @@ jobs:
           file: ./finansecure-web/Dockerfile.prod
           push: true
           tags: |
-            ${{ env.ecr_registry }}/finansecure-frontend:${{ steps.vars.outputs.short_sha }}
-            ${{ env.ecr_registry }}/finansecure-frontend:${{ steps.vars.outputs.branch_name }}
+            ${{ env.ecr_registry }}/finansecure/finansecure-frontend:${{ steps.vars.outputs.short_sha }}
+            ${{ env.ecr_registry }}/finansecure/finansecure-frontend:${{ steps.vars.outputs.branch_name }}
 
       - name: Build and Push Website Service
         uses: docker/build-push-action@v5
