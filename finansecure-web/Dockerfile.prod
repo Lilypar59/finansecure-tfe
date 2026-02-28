@@ -1,42 +1,51 @@
-# ╔════════════════════════════════════════════════════════════════════════════╗
-# ║  Dockerfile: FinanSecure Frontend - Compilación MULTI-STAGE                 ║
-# ║  Resuelve el error "dist/not found" en GitHub Actions                      ║
-# ║  Mantiene la imagen final ligera (Nginx Alpine)                            ║
-# ╚════════════════════════════════════════════════════════════════════════════╝
-
-# --- ETAPA 1: Compilación (Build) ---
+# ------------------------------------------------------------------------------
+# ETAPA 1: Compilación (Build)
+# ------------------------------------------------------------------------------
 FROM node:18-alpine AS build-stage
+
+# Directorio de trabajo dentro del contenedor
 WORKDIR /app
 
-# Copiar archivos de dependencias primero (aprovecha el caché de Docker)
-COPY finansecure-web/package*.json ./
+# 1. Copiar archivos de definición de dependencias
+# Usamos el comodín * para asegurar que se copien package.json y package-lock.json
+COPY package*.json ./
+
+# 2. Instalar dependencias (Limpio y rápido)
 RUN npm install
 
-# Copiar el resto del código y compilar
-COPY finansecure-web/ .
+# 3. Copiar TODO el código fuente del proyecto al contenedor
+COPY . .
+
+# 4. Compilar la aplicación para producción
+# Esto generará la carpeta /app/dist/finansecure-web/browser
 RUN npm run build
 
-# --- ETAPA 2: Servidor Web (Producción) ---
+# ------------------------------------------------------------------------------
+# ETAPA 2: Servidor Web (Producción con Nginx)
+# ------------------------------------------------------------------------------
 FROM nginx:alpine
 
 LABEL maintainer="FinanSecure Team"
-LABEL version="1.1"
-LABEL description="FinanSecure Frontend - Angular 17+ (Optimized)"
+LABEL version="1.2"
 
-# Limpiar contenido por defecto de nginx
+# Limpiar el directorio por defecto de Nginx
 RUN rm -rf /usr/share/nginx/html/*
 
-# Copiar configuración de nginx (desde el contexto de build)
-COPY finansecure-web/nginx.conf /etc/nginx/nginx.conf
+# 1. Copiar tu configuración personalizada de Nginx
+# IMPORTANTE: Asegúrate que nginx.conf esté en la misma carpeta que este Dockerfile
+COPY nginx.conf /etc/nginx/nginx.conf
 
-# COPIAR DESDE LA ETAPA DE BUILD (Aquí está el truco)
-# Ajustamos la ruta según donde Angular genera los archivos
-COPY --from=build-stage /app/dist/finansecure-web/browser/ /usr/share/nginx/html
+# 2. Copiar los archivos compilados desde la etapa anterior (build-stage)
+# La ruta /app/dist/... debe coincidir con la estructura de tu proyecto Angular
+COPY --from=build-stage /app/dist/finansecure-web/browser /usr/share/nginx/html
 
-# Renombrar index.csr.html a index.html para SPA
-RUN if [ -f /usr/share/nginx/html/index.csr.html ]; then mv /usr/share/nginx/html/index.csr.html /usr/share/nginx/html/index.html; fi
+# 3. Soporte para SPA (Single Page Application)
+# Renombrar index.csr.html a index.html si existe (común en Angular 17+)
+RUN if [ -f /usr/share/nginx/html/index.csr.html ]; then \
+    mv /usr/share/nginx/html/index.csr.html /usr/share/nginx/html/index.html; \
+    fi
 
-# Crear usuario non-root y permisos
+# 4. Seguridad: Configurar usuario no-root y permisos
 RUN addgroup -g 1001 appgroup && \
     adduser -u 1001 -S appuser -G appgroup && \
     chown -R appuser:appgroup /usr/share/nginx/html /var/cache/nginx /var/log/nginx /etc/nginx/conf.d && \
@@ -44,15 +53,15 @@ RUN addgroup -g 1001 appgroup && \
     chown appuser:appgroup /var/run/nginx.pid && \
     apk add --no-cache curl
 
-# Puerto
+# Exponer el puerto estándar
 EXPOSE 80
 
-# Health check
+# Monitoreo de salud
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
     CMD curl -f http://localhost/health || exit 1
 
-# Usuario non-root
+# Cambiar al usuario seguro
 USER appuser
 
-# Comando para iniciar nginx
+# Iniciar Nginx
 CMD ["nginx", "-g", "daemon off;"]
