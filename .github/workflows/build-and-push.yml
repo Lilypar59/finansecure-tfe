@@ -64,8 +64,8 @@ jobs:
           push: true
           no-cache: true
           tags: |
-            ${{ env.ecr_registry }}/finansecure-auth:${{ steps.vars.outputs.short_sha }}
-            ${{ env.ecr_registry }}/finansecure-auth:${{ steps.vars.outputs.branch_name }}
+            ${{ env.ecr_registry }}/Finansecure-Auth:${{ steps.vars.outputs.short_sha }}
+            ${{ env.ecr_registry }}/Finansecure-Auth:${{ steps.vars.outputs.branch_name }}
 
       - name: Build and Push Frontend Service
         uses: docker/build-push-action@v5
