@@ -1,0 +1,96 @@
+{
+  "scannerProperties": [
+    {
+      "key": "sonar.scanner.app",
+      "value": "ScannerMSBuild"
+    },
+    {
+      "key": "sonar.scanner.appVersion",
+      "value": "11.1"
+    },
+    {
+      "key": "sonar.scanner.bootstrapStartTime",
+      "value": "1770774044000"
+    },
+    {
+      "key": "sonar.projectKey",
+      "value": "FinanSecure-Auth"
+    },
+    {
+      "key": "sonar.working.directory",
+      "value": "/root/finansecure-tfe/FinanSecure.Auth/.sonarqube/out/.sonar"
+    },
+    {
+      "key": "sonar.projectBaseDir",
+      "value": "/root/finansecure-tfe/FinanSecure.Auth"
+    },
+    {
+      "key": "sonar.pullrequest.cache.basepath",
+      "value": "/root/finansecure-tfe/FinanSecure.Auth"
+    },
+    {
+      "key": "sonar.sources",
+      "value": ""
+    },
+    {
+      "key": "sonar.tests",
+      "value": ""
+    },
+    {
+      "key": "sonar.modules",
+      "value": "D9493B77-55EE-483B-8A34-FFF82819588A"
+    },
+    {
+      "key": "D9493B77-55EE-483B-8A34-FFF82819588A.sonar.projectKey",
+      "value": "FinanSecure-Auth:D9493B77-55EE-483B-8A34-FFF82819588A"
+    },
+    {
+      "key": "D9493B77-55EE-483B-8A34-FFF82819588A.sonar.projectName",
+      "value": "FinanSecure.Auth"
+    },
+    {
+      "key": "D9493B77-55EE-483B-8A34-FFF82819588A.sonar.projectBaseDir",
+      "value": "/root/finansecure-tfe/FinanSecure.Auth"
+    },
+    {
+      "key": "D9493B77-55EE-483B-8A34-FFF82819588A.sonar.working.directory",
+      "value": "/root/finansecure-tfe/FinanSecure.Auth/.sonarqube/out/.sonar/mod0"
+    },
+    {
+      "key": "D9493B77-55EE-483B-8A34-FFF82819588A.sonar.sourceEncoding",
+      "value": "utf-8"
+    },
+    {
+      "key": "D9493B77-55EE-483B-8A34-FFF82819588A.sonar.tests",
+      "value": ""
+    },
+    {
+      "key": "D9493B77-55EE-483B-8A34-FFF82819588A.sonar.sources",
+      "value": "/root/finansecure-tfe/FinanSecure.Auth/Controllers/AuthController.cs,/root/finansecure-tfe/FinanSecure.Auth/Controllers/HealthController.cs,/root/finansecure-tfe/FinanSecure.Auth/Data/AuthContext.cs,/root/finansecure-tfe/FinanSecure.Auth/DTOs/RequestDtos.cs,/root/finansecure-tfe/FinanSecure.Auth/DTOs/ResponseDtos.cs,/root/finansecure-tfe/FinanSecure.Auth/Interfaces/IAuthService.cs,/root/finansecure-tfe/FinanSecure.Auth/Interfaces/IJwtService.cs,/root/finansecure-tfe/FinanSecure.Auth/Interfaces/IPasswordService.cs,/root/finansecure-tfe/FinanSecure.Auth/Interfaces/IRefreshTokenRepository.cs,/root/finansecure-tfe/FinanSecure.Auth/Interfaces/IUserRepository.cs,/root/finansecure-tfe/FinanSecure.Auth/Migrations/20251230100000_InitialCreate.cs,/root/finansecure-tfe/FinanSecure.Auth/Migrations/AuthContextModelSnapshot.cs,/root/finansecure-tfe/FinanSecure.Auth/Models/RefreshToken.cs,/root/finansecure-tfe/FinanSecure.Auth/Models/User.cs,/root/finansecure-tfe/FinanSecure.Auth/Program.cs,/root/finansecure-tfe/FinanSecure.Auth/Repositories/RefreshTokenRepository.cs,/root/finansecure-tfe/FinanSecure.Auth/Repositories/UserRepository.cs,/root/finansecure-tfe/FinanSecure.Auth/Services/AuthService.cs,/root/finansecure-tfe/FinanSecure.Auth/Services/JwtService.cs,/root/finansecure-tfe/FinanSecure.Auth/Services/PasswordService.cs,/root/finansecure-tfe/FinanSecure.Auth/obj/Debug/net8.0/FinanSecure.Auth.GlobalUsings.g.cs,\"/root/finansecure-tfe/FinanSecure.Auth/obj/Debug/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs\",/root/finansecure-tfe/FinanSecure.Auth/obj/Debug/net8.0/FinanSecure.Auth.AssemblyInfo.cs,/root/finansecure-tfe/FinanSecure.Auth/obj/Debug/net8.0/FinanSecure.Auth.MvcApplicationPartsAssemblyInfo.cs,/root/finansecure-tfe/FinanSecure.Auth/appsettings.json,/root/finansecure-tfe/FinanSecure.Auth/.gitignore,/root/finansecure-tfe/FinanSecure.Auth/00_START_HERE.md,/root/finansecure-tfe/FinanSecure.Auth/appsettings.json.example,/root/finansecure-tfe/FinanSecure.Auth/ARCHITECTURE.md,/root/finansecure-tfe/FinanSecure.Auth/bashsonarqube.sh,/root/finansecure-tfe/FinanSecure.Auth/DELIVERY_SUMMARY.txt,/root/finansecure-tfe/FinanSecure.Auth/DIAGRAMS.txt,/root/finansecure-tfe/FinanSecure.Auth/Dockerfile,/root/finansecure-tfe/FinanSecure.Auth/Dockerfile.simple,/root/finansecure-tfe/FinanSecure.Auth/DOCKERFILE_GUIDE.md,/root/finansecure-tfe/FinanSecure.Auth/FinanSecure.Auth.http,/root/finansecure-tfe/FinanSecure.Auth/IMPLEMENTATION_COMPLETE.md,/root/finansecure-tfe/FinanSecure.Auth/QUICKSTART.md,/root/finansecure-tfe/FinanSecure.Auth/README.md,/root/finansecure-tfe/FinanSecure.Auth/SETUP_POSTGRESQL.md,/root/finansecure-tfe/FinanSecure.Auth/SUMMARY.txt,/root/finansecure-tfe/FinanSecure.Auth/Properties/launchSettings.json,/root/finansecure-tfe/FinanSecure.Auth/obj/project.assets.json,/root/finansecure-tfe/FinanSecure.Auth/obj/FinanSecure.Auth.csproj.nuget.dgspec.json,/root/finansecure-tfe/FinanSecure.Auth/bin/Debug/net8.0/FinanSecure.Auth.deps.json,/root/finansecure-tfe/FinanSecure.Auth/bin/Debug/net8.0/FinanSecure.Auth.runtimeconfig.json,/root/finansecure-tfe/FinanSecure.Auth/bin/Debug/net8.0/appsettings.json,/root/finansecure-tfe/FinanSecure.Auth/obj/Debug/net8.0/FinanSecure.Auth.sourcelink.json,/root/finansecure-tfe/FinanSecure.Auth/obj/Debug/net8.0/staticwebassets.build.json"
+    },
+    {
+      "key": "D9493B77-55EE-483B-8A34-FFF82819588A.sonar.cs.analyzer.projectOutPaths",
+      "value": "/root/finansecure-tfe/FinanSecure.Auth/.sonarqube/out/0"
+    },
+    {
+      "key": "D9493B77-55EE-483B-8A34-FFF82819588A.sonar.cs.roslyn.reportFilePaths",
+      "value": "/root/finansecure-tfe/FinanSecure.Auth/.sonarqube/out/0/Issues.json"
+    },
+    {
+      "key": "D9493B77-55EE-483B-8A34-FFF82819588A.sonar.cs.scanner.telemetry",
+      "value": "/root/finansecure-tfe/FinanSecure.Auth/.sonarqube/out/0/Telemetry.json"
+    },
+    {
+      "key": "sonar.token",
+      "value": "***"
+    },
+    {
+      "key": "sonar.host.url",
+      "value": "http://localhost:9000"
+    },
+    {
+      "key": "sonar.visualstudio.enable",
+      "value": "false"
+    }
+  ]
+}

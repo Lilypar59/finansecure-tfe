@@ -5,7 +5,7 @@ FROM nginx:1.25.4-alpine
 WORKDIR /usr/share/nginx/html
 
 # Copy website files from the website directory
-COPY website/ /usr/share/nginx/html/
+COPY . /usr/share/nginx/html/
 
 # Copy NGINX configuration (if you have one)
 # COPY website/nginx.conf /etc/nginx/conf.d/default.conf
