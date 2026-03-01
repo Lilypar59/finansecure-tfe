@@ -110,6 +110,7 @@ jobs:
           no-cache: true
           tags: |
             ${{ env.ecr_registry }}/finansecure/finansecure-auth:${{ steps.vars.outputs.short_sha }}
+            ${{ env.ecr_registry }}/finansecure/finansecure-auth:${{ steps.vars.outputs.branch_name }}
 
       - name: Build and Push Frontend Service
         uses: docker/build-push-action@v5
@@ -119,6 +120,7 @@ jobs:
           push: true
           tags: |
             ${{ env.ecr_registry }}/finansecure/finansecure-frontend:${{ steps.vars.outputs.short_sha }}
+            ${{ env.ecr_registry }}/finansecure/finansecure-frontend:${{ steps.vars.outputs.branch_name }}
 
       - name: Build and Push Website Service
         uses: docker/build-push-action@v5
@@ -128,6 +130,7 @@ jobs:
           push: true
           tags: |
             ${{ env.ecr_registry }}/finansecure/finansecure-website:${{ steps.vars.outputs.short_sha }}
+            ${{ env.ecr_registry }}/finansecure/finansecure-website:${{ steps.vars.outputs.branch_name }}
 
   ############################################################
   # 4️⃣ TERRAFORM (IaC)
